@@ -1,0 +1,21 @@
+What's built correctly and solid:
+Everything core is working as intended — signal generation, 3 filters, additional data collection, outcome tracking, TP snapshots with full market re-scan, event-based price journey, gzip archival, CSV export, Telegram commands. The architecture is clean and well thought out.
+
+3 real issues worth fixing:
+Issue 1 — Archive atomicity gap (Section 14 & 18):
+The document itself flags this — _save_gzip() catches IOError internally without re-raising it. This means if the gzip write fails silently, the signal gets removed from signals.json anyway and you lose data permanently. This is the most serious issue. Tell your agent to make _save_gzip() re-raise the exception so the caller's try/except actually protects against data loss.
+Issue 2 — btc_trend_during_signal is calculated wrong:
+In Section 14, BTC trend is calculated by comparing BTC price at archive time (7 days later) vs entry. So a signal that fired during a BTC pump but archived during a dip would be classified as "dumping" even though BTC was pumping during the actual signal. For analysis purposes this field becomes misleading. It should compare BTC at first TP hit time vs entry, not archive time vs entry. Tell your agent to fix btc_trend_during_signal to use btc_price_at_hit from the first TP snapshot instead of current BTC price at archive time.
+Issue 3 — alert_time_ts is set by tracker, not scanner:
+Section 6 notes this — the timestamp is set when record_signal() is called by the tracker, not when the scanner actually detected the signal. There can be a small delay between scanner detection and tracker recording. For most purposes this is fine, but tp{N}_hit_hours_after_entry calculations are based on this timestamp, so if the delay is significant it slightly skews timing data. Low priority but worth knowing.
+
+One missing field for future analysis:
+There's no btc_price_at_entry_snapshot stored separately from btc_price. The root btc_price field is the BTC price when the signal fired — that's good. But at archive time when calculating btc_trend_during_signal, it re-fetches current BTC live. Once Issue 2 is fixed this won't matter, but just confirming the entry BTC price is properly stored in the root btc_price field — which it is.
+
+Summary — tell your agent:
+
+Fix _save_gzip() to re-raise exceptions so archive atomicity actually works
+Fix btc_trend_during_signal to use BTC price at first TP hit vs entry, not archive time vs entry
+Issue 3 is low priority, just be aware of it
+
+Everything else is solid. The bot is well built.

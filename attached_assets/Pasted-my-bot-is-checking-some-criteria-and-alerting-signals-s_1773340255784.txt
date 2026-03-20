@@ -1,0 +1,153 @@
+my bot is checking some criteria and alerting signals...
+some hittinng 10,20% in muntes or in few hours
+some fiest going -10,20% then pump and hit and take more than 4,5 days... is tgat will also considered valid??
+
+time at hitting tp complete deails how how it went, why it touch tp, why it took that time etc eveyrtign you can imagine
+
+if not
+i also want to collect this data that after how many days it went down, why, then why it came up, how much it goes down before hitting target etc everything....
+current is strixture of collecting data is
+{
+"symbol": "BDXNUSDT",
+"entry_price": 0.00905186,
+"highest_price": 0.00936892,
+"lowest_price": 0.00863,
+"current_price": 0.00877,
+"alert_time_ts": 1773227642.1438856,
+"alert_time": "2026-03-11 11:14:02 UTC",
+"timeframe": "1h",
+"price_change_24h": 5.965,
+"breakout_margin_pct": 1.21951219512194,
+"high_24h": 0.00902,
+"vol_candle_1": 26986.35489,
+"vol_candle_2": 31265.07111,
+"vol_candle_3": 82690.85193,
+"vol_candle_1_fmt": "$27K",
+"vol_candle_2_fmt": "$31K",
+"vol_candle_3_fmt": "$83K",
+"vol_ratio": 3.06,
+"candle_colors": [
+"green",
+"green",
+"green"
+],
+"rvol": 3.068865509662585,
+"btc_price": 69548.8,
+"candle_time": "2026-03-11 10:00 UTC",
+"additional_data": {
+"rvol_20": 3.07,
+"vol_baseline_avg": 26945.09,
+"oi_current_usdt": 962534.98,
+"oi_avg_24h_usdt": 903090.52,
+"oi_change_pct": 6.58,
+"oi_growth_current": 26248.98,
+"oi_growth_avg": 922.34,
+"oi_growth_ratio": 28.46,
+"funding_rate": 0.005,
+"funding_in_ideal_range": true,
+"vol_24h_usdt": 748336.88,
+"vol_24h_above_50m": false,
+"ema50_4h": 0.00823027,
+"price_above_ema50_4h": true,
+"ema50_distance_pct": 10.93,
+"volatility_recent_10_pct": 1.6191,
+"volatility_prior_10_pct": 1.8487,
+"volatility_compression_ratio": 0.876,
+"is_compressed": false,
+"market_cap_usd": 1448733.0,
+"market_cap_fmt": "$1.45M"
+},
+"tp_sent": [],
+"reversal_warned": false,
+"last_update_ts": 1773388344.220624,
+"current_pct": -3.11,
+"peak_pct": 3.5,
+"lowest_pct": -4.66
+},
+
+Show more
+Mar 13
+Great question. Let me address both things:
+
+On the "goes -10% then pumps and hits TP after 4-5 days" question:
+
+Yes it's valid data but it needs to be treated as a completely separate signal type. A signal that drops 20% before hitting target is a totally different beast from one that hits in minutes — different risk profile, different psychology, different capital requirement. If you mix them together in analysis you'll get confused results. You need to know which is which.
+
+On your data structure — here's what's missing:
+
+Your current structure captures the signal entry conditions well but the outcome tracking is too thin. Right now you only have:
+
+peak_pct — highest it went
+lowest_pct — lowest it went
+current_pct — where it is now
+tp_sent — which TPs fired
+But you're missing the entire journey. You need to add:
+
+json
+"outcome": {
+  "tp1_hit": true,
+  "tp1_hit_time": "2026-03-11 14:22:00 UTC",
+  "tp1_hit_hours_after_entry": 3.13,
+  "tp2_hit": false,
+  "tp2_hit_time": null,
+  "tp2_hit_hours_after_entry": null,
+  "tp3_hit": false,
+  "max_drawdown_before_tp1": -4.66,
+  "max_drawdown_pct": -4.66,
+  "max_drawdown_time": "2026-03-11 13:10:00 UTC",
+  "max_drawdown_hours_after_entry": 1.93,
+  "went_negative_before_tp": true,
+  "hours_negative_before_tp": 1.5,
+  "peak_pct": 3.5,
+  "peak_time": "2026-03-11 12:45:00 UTC",
+  "peak_hours_after_entry": 1.52,
+  "signal_still_active": true,
+  "signal_closed": false,
+  "close_reason": null,
+  "close_time": null,
+  "btc_price_at_tp1": null,
+  "btc_change_entry_to_tp1": null,
+  "btc_trend_during_signal": "ranging"
+}
+And a price journey log:
+
+json
+"price_journey": [
+  {
+    "timestamp": "2026-03-11 12:00 UTC",
+    "hours_after_entry": 0.77,
+    "price": 0.00921,
+    "pct_from_entry": 1.75,
+    "btc_price": 69620.0
+  },
+  {
+    "timestamp": "2026-03-11 13:00 UTC", 
+    "hours_after_entry": 1.77,
+    "price": 0.00863,
+    "pct_from_entry": -4.66,
+    "btc_price": 69480.0
+  }
+]
+Why each field matters:
+
+tp1_hit_hours_after_entry — lets you analyze fast vs slow signals separately. Signals hitting TP in under 2 hours are a completely different pattern from ones taking 4 days.
+
+max_drawdown_before_tp1 — critical. If a signal drops 15% before recovering to hit TP, most people would have already stopped out. Knowing this tells you whether your TP hits are actually tradeable in real life or just theoretical.
+
+went_negative_before_tp — directly answers your question. After 30 days you can see what % of your TP hits required sitting through negative territory first, and how deep.
+
+btc_trend_during_signal — classify as "pumping", "dumping", "ranging" based on BTC % change during the signal window. This is huge for understanding which signals work in which market conditions.
+
+price_journey — hourly snapshots of the price. This lets you reconstruct exactly what happened, why it took 4 days, whether it correlated with BTC moves, everything.
+
+On the question of whether slow signals are valid:
+
+Collect them all but tag them:
+
+json
+"signal_type": "fast"  // hit TP in under 6 hours
+"signal_type": "slow"  // took 6-72 hours
+"signal_type": "delayed" // took more than 3 days
+"signal_type": "failed" // never hit TP, went negative
+"signal_type": "active" // still running
+After 30 days you'll be able to answer questions like "do my fast signals have better entry conditions than slow ones?" and "are delayed signals just BTC-correlated pumps rather than coin-specific moves?"

@@ -1,0 +1,165 @@
+1️⃣ Detect Sudden Volume Explosion
+
+Instead of comparing to the last candle, compare current volume vs average volume.
+
+Use a multiplier
+
+Example logic:
+
+current_volume >= avg_volume_last_20_candles * volume_multiplier
+
+Good multiplier ranges:
+
+Multiplier	Meaning
+2x	small spike
+3x	strong
+4x+	abnormal
+
+✅ Recommended
+
+volume_multiplier: 3
+volume_average_period: 20
+timeframe: 1h
+
+Example:
+
+Avg Volume	Current	Result
+100k	300k	signal
+100k	1M	strong signal
+
+This catches volume expansion phase.
+
+2️⃣ Detect Liquidity Expansion (VERY IMPORTANT)
+
+You mentioned coins going:
+
+100k volume → 10M → billions
+
+That means liquidity entering the market.
+
+So also track:
+
+24h_volume / 7d_avg_volume
+
+Trigger when:
+
+24h_volume >= 5x weekly average
+3️⃣ Price Must Not Already Pump Too Much
+
+You want early signals, not after the pump.
+
+Add filter:
+
+price_change_24h < 20%
+
+Why?
+
+Because coins that pump 80% already are late entries.
+
+4️⃣ Market Cap Filter (Find Small Coins Early)
+
+Huge coins rarely pump 100% in days.
+
+Filter:
+
+market_cap < 1B
+
+or
+
+daily_volume < 200M
+
+This focuses on mid/small caps.
+
+5️⃣ Candle Body Strength (Avoid Fake Spikes)
+
+Require bullish pressure.
+
+close > open
+body_percent >= 50%
+
+This avoids pump-and-dump wick candles.
+
+6️⃣ Consecutive Volume Growth (Smart Money Entry)
+
+Often volume grows over several candles.
+
+Example rule:
+
+last_3_candles_volume_increasing == true
+
+Example:
+
+200k
+450k
+1.2M
+
+This is accumulation before pump.
+
+7️⃣ Order Book / OI Expansion (Advanced but Powerful)
+
+If using futures data:
+
+Signal when:
+
+open_interest increase > 5% in 1h
+
+Meaning new positions opening.
+
+⭐ Ideal Pump Detector Logic
+
+Your bot should alert when:
+
+volume >= 3x avg_volume_20
+AND
+volume increasing last 3 candles
+AND
+price_change_24h < 20%
+AND
+bullish candle
+AND
+volume > 1M
+Example Signal Your Bot Would Catch
+
+Before pump:
+
+Coin: XYZ
+Avg Volume: 120k
+Current Volume: 1.1M
+Multiplier: 9x
+Price Change: +6%
+Volume increasing 3 candles
+
+Your bot sends alert.
+
+Then typical pump:
+
+Day 1: +12%
+Day 2: +25%
+Day 3: +40%
+
+This is exactly the pattern you described.
+
+8️⃣ Bonus (Most Powerful Filter)
+
+Track Relative Volume (RVOL)
+
+RVOL = current_volume / avg_volume
+
+Alert when:
+
+RVOL >= 4
+
+This is what many professional scanners use.
+
+⭐ Best Timeframe
+
+For these pumps:
+
+TF	Use
+15m	early detection
+1h	confirmation
+
+Best combo:
+
+scan 15m
+confirm 1h

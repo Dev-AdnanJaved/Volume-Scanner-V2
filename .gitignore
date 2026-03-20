@@ -1,0 +1,9 @@
+scanner.log
+data/signals.json
+data/history.json
+data/pending_report.json
+data/last_report_date.txt
+data/report_*.json
+__pycache__/
+*.pyc
+.local/

@@ -1,0 +1,72 @@
+{
+  "binance": {
+    "api_key": "",
+    "api_secret": ""
+  },
+  "telegram": {
+    "bot_token": "YOUR_BOT_TOKEN",
+    "chat_id": "YOUR_CHAT_ID"
+  },
+  "scanner": {
+    "timeframe": "1h",
+    "scan_interval_seconds": 900,
+    "breakout_lookback_candles": 24,
+    "consecutive_vol_candles": 3,
+    "consecutive_vol_min_ratio": 2.0,
+    "high_breakout_warning_pct": 5.0,
+    "max_price_change_24h_pct": 20.0,
+    "min_volume_usdt": 0,
+    "cooldown_hours": 168,
+    "excluded_symbols": ["USDCUSDT", "BTCDOMUSDT"],
+    "hard_filters": {
+      "vol_ratio_max": 15,
+      "funding_rate_min": -0.05,
+      "vol_24h_usdt_min": 5000000,
+      "market_cap_usd_max": 1000000000
+    },
+    "soft_flags": {
+      "breakout_margin_pct_max": 1.5,
+      "price_change_24h_max": 5.0,
+      "ema50_distance_pct_max": 8.0,
+      "vol_ratio_max": 10,
+      "vol_24h_usdt_min": 10000000,
+      "oi_change_pct_max": 12.0,
+      "funding_rate_min": -0.01,
+      "max_flags_to_block": 5
+    },
+    "quality_score": {
+      "vol_ratio_max": 10,
+      "funding_rate_min": 0,
+      "price_change_24h_max": 5.0,
+      "breakout_margin_pct_max": 1.5,
+      "oi_change_pct_max": 8.0,
+      "ema50_distance_pct_max": 5.0,
+      "market_cap_usd_min": 10000000,
+      "market_cap_usd_max": 500000000,
+      "vol_24h_usdt_min": 10000000
+    }
+  },
+  "tracker": {
+    "enabled": true,
+    "max_age_hours": 168,
+    "price_update_interval_seconds": 300,
+    "data_dir": "data",
+    "take_profit_targets": [5, 10, 20, 30, 50, 75, 100],
+    "reversal_alert_enabled": true,
+    "min_reversal_peak_pct": 3.0,
+    "reversal_drop_from_peak_pct": 5.0,
+    "detailed_report_min_age_hours": 168,
+    "daily_report_hour": 0
+  },
+  "market_cap": {
+    "enabled": false,
+    "cache_minutes": 120
+  },
+  "rate_limit": {
+    "binance_delay_ms": 100
+  },
+  "logging": {
+    "level": "INFO",
+    "log_file": "scanner.log"
+  }
+}

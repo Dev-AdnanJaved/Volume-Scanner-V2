@@ -1,0 +1,31 @@
+Missing fields:
+json"outcome": {
+  "tp1_hit_hours_after_entry": null,  // you have tp5, tp10 but not generic tp1/tp2
+  "signal_closed": false,             // missing — is signal done or still running?
+  "close_reason": null,               // missing — "tp_hit" / "stop_loss" / "expired" / "manual"
+  "close_time": null,                 // missing
+  "btc_change_entry_to_tp": null,     // missing — how much did BTC move during the signal
+  "btc_trend_during_signal": null,    // missing — "pumping" / "dumping" / "ranging"
+  "signal_type": "active"             // you have this, good
+}
+Small issues:
+signal_type is set to "active" but TP5 and TP10 already hit — it should probably be "slow" or "partial_tp" since it's still running but already hit targets.
+high_breakout_warning is duplicated — it's in both the root level and inside outcome. Pick one place, root level makes more sense.
+additional_data is empty {} — in your real data this should have all the fields like rvol_20, oi_current_usdt, funding_rate, ema50_4h etc. Don't let this be empty.
+Price journey is too thin:
+You only have 2 snapshots. You need hourly snapshots for the entire signal duration. So if a signal runs 4 days that's roughly 96 hourly entries. This is what lets you reconstruct the full story later.
+Also add to each price journey entry:
+json{
+  "timestamp": "2026-03-13 11:00:00 UTC",
+  "timestamp_ts": 1710303600.0,
+  "hours_after_entry": 1.0,
+  "price": 65800.0,
+  "pct_from_entry": 0.56,
+  "btc_price": 65100.0,
+  "btc_pct_from_signal_entry": 0.15,  // add this — BTC % change since signal fired
+  "volume_1h": 14500000,               // add this — volume at that hour
+  "is_new_low": false,                 // add this — did this candle set a new low since entry
+  "is_new_high": false                 // add this — did this candle set a new high since entry
+}
+Overall verdict:
+You're about 80% there. The structure is solid and thinking is right. Just add the missing fields above, fix signal_type logic, fill additional_data properly, and make sure price journey is capturing every hour automatically not manually. Once those are fixed this structure will give you everything you need for deep analysis in 30 days.

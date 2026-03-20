@@ -1,0 +1,73 @@
+15 [ERROR] scanner: Scan cycle error
+2026-03-09 00:52:15.45
+a52fab45
+User
+File "/home/runner/workspace/scanner.py", line 200, in _cycle
+2026-03-09 00:52:15.45
+a52fab45
+User
+info = self._get("/fapi/v1/exchangeInfo", weight=1)
+2026-03-09 00:52:15.45
+a52fab45
+User
+self._cycle()
+2026-03-09 00:52:15.45
+a52fab45
+User
+File "/home/runner/workspace/binance_client.py", line 119, in get_usdt_perpetual_symbols
+2026-03-09 00:53:13.59
+a52fab45
+System
+an open port was not detected
+2026-03-09 00:58:15.62
+cac448d0
+System
+starting up user application
+2026-03-09 00:58:15.62
+cac448d0
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-03-09 00:58:16.32
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] main: Binance Futures Volume Scanner — starting
+2026-03-09 00:58:16.32
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] main: ============================================================
+2026-03-09 00:58:16.32
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] main: ============================================================
+2026-03-09 00:58:16.70
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] tracker: Tracker initialised (max_age=168h, update=300s, TP targets=[5, 10, 15, 20], reversal=True)
+2026-03-09 00:58:16.70
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] notifier: Telegram bot validated: @BinanceCoinsVolumeScanner_Bot
+2026-03-09 00:58:16.70
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] tracker: Tracker background loop started (every 300s)
+2026-03-09 00:58:16.70
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] bot_commands: Telegram command listener started
+2026-03-09 00:58:16.70
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] main: Tracker + command listener started
+2026-03-09 00:58:16.85
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] scanner: Scanner loop started (interval 900s, need 21 candles/symbol, cooldown 12.0h)
+2026-03-09 00:58:16.94
+cac448d0
+User
+2026-03-08 19:58:16 [ERROR] binance_client: HTTP 451 — Binance is blocking this server's IP (geo/legal restriction). Sleeping 300s before retry.
+2026-03-09 00:58:16.98
+cac448d0
+User
+2026-03-08 19:58:16 [ERROR] binance_client: HTTP 451 — Binance is blocking this server's IP (geo/legal restriction). Sleeping 300s before retry.

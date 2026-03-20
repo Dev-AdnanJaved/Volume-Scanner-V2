@@ -1,0 +1,68 @@
+09 00:58:16.70
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] main: Tracker + command listener started
+2026-03-09 00:58:16.85
+cac448d0
+User
+2026-03-08 19:58:16 [INFO] scanner: Scanner loop started (interval 900s, need 21 candles/symbol, cooldown 12.0h)
+2026-03-09 00:58:16.94
+cac448d0
+User
+2026-03-08 19:58:16 [ERROR] binance_client: HTTP 451 — Binance is blocking this server's IP (geo/legal restriction). Sleeping 300s before retry.
+2026-03-09 00:58:16.98
+cac448d0
+User
+2026-03-08 19:58:16 [ERROR] binance_client: HTTP 451 — Binance is blocking this server's IP (geo/legal restriction). Sleeping 300s before retry.
+2026-03-09 00:59:15.62
+cac448d0
+System
+an open port was not detected
+2026-03-09 01:08:17.96
+a794959a
+System
+starting up user application
+2026-03-09 01:08:17.96
+a794959a
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-03-09 01:08:19.25
+a794959a
+User
+2026-03-08 20:08:19 [INFO] main: ============================================================
+2026-03-09 01:08:19.25
+a794959a
+User
+2026-03-08 20:08:19 [INFO] main: ============================================================
+2026-03-09 01:08:19.25
+a794959a
+User
+2026-03-08 20:08:19 [INFO] main: Binance Futures Volume Scanner — starting
+2026-03-09 01:08:19.64
+a794959a
+User
+2026-03-08 20:08:19 [INFO] notifier: Telegram bot validated: @BinanceCoinsVolumeScanner_Bot
+2026-03-09 01:08:19.64
+a794959a
+User
+2026-03-08 20:08:19 [INFO] tracker: Tracker initialised (max_age=168h, update=300s, TP targets=[5, 10, 15, 20], reversal=True)
+2026-03-09 01:08:19.64
+a794959a
+User
+2026-03-08 20:08:19 [INFO] tracker: Tracker background loop started (every 300s)
+2026-03-09 01:08:19.64
+a794959a
+User
+2026-03-08 20:08:19 [INFO] bot_commands: Telegram command listener started
+2026-03-09 01:08:19.64
+a794959a
+User
+2026-03-08 20:08:19 [INFO] main: Tracker + command listener started
+2026-03-09 01:08:19.79
+a794959a
+User
+2026-03-08 20:08:19 [INFO] scanner: Scanner loop started (interval 900s, need 21 candles/symbol, cooldown 12.0h)
+2026-03-09 01:08:19.89
+a794959a
+User
+2026-03-08 20:08:19 [ERROR] binance_client: HTTP 

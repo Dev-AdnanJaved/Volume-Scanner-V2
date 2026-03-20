@@ -1,0 +1,93 @@
+Let me calculate the final clean version with everything updated.
+
+Good, full picture confirmed. Here's the complete final system:
+
+---
+
+## HARD FILTERS — Block Signal Entirely
+
+Signal must pass **all 4** or it doesn't fire.
+
+| # | Field | Condition | Why |
+|---|-------|-----------|-----|
+| 1 | `vol_ratio` | ≤ 15 | Higher = catching tail of pump |
+| 2 | `funding_rate` | > -0.05 | Very negative = shorts dominating, move won't hold |
+| 3 | `vol_24h_usdt` | > $5,000,000 | No liquidity = can't sustain past TP1 |
+| 4 | `market_cap_usd` | < $1,000,000,000 | Large caps don't move — 60% failure rate |
+
+---
+
+## SOFT FLAGS — Count Per Signal
+
+Each condition that's true adds 1 flag. **Block signal if 5 or more flags.**
+
+| # | Field | Condition | Edge vs no flag |
+|---|-------|-----------|----------------|
+| 1 | `breakout_margin_pct` | > 1.5% | **+15.2%** strongest predictor |
+| 2 | `price_change_24h` | > 5% | **+12.7%** already ran too much |
+| 3 | `ema50_distance_pct` | > 8% | +9.7% too extended, pullback risk |
+| 4 | `vol_ratio` | > 10 | +6.3% getting close to danger |
+| 5 | `vol_24h_usdt` | < $10,000,000 | low liquidity, weak follow-through |
+| 6 | `oi_change_pct` | > 12% | crowded trade, likely reversal |
+| 7 | `funding_rate` | < -0.01 | mild bearish pressure |
+
+---
+
+## QUALITY SCORE — 0 to 8 Points
+
+Each condition true = +1 point. Score tells you how clean the setup is.
+
+| # | Field | Condition for point |
+|---|-------|-------------------|
+| 1 | `vol_ratio` | ≤ 10 |
+| 2 | `funding_rate` | ≥ 0 |
+| 3 | `price_change_24h` | ≤ 5% |
+| 4 | `breakout_margin_pct` | ≤ 1.5% |
+| 5 | `oi_change_pct` | ≤ 8% |
+| 6 | `ema50_distance_pct` | ≤ 5% |
+| 7 | `market_cap_usd` | between $10M–$500M |
+| 8 | `vol_24h_usdt` | ≥ $10,000,000 |
+
+### Score Performance (from 414 signals)
+
+| Score | Hit 5%+ rate | 3+ TPs rate | 0 TPs rate |
+|-------|-------------|-------------|------------|
+| 8/8 | **100%** | 25% | 0% |
+| 7/8 | 63% | 7% | 37% |
+| 6/8 | 59% | 23% | 41% |
+| 5/8 | 50% | 30% | 50% |
+| 4/8 | 64% | 29% | 36% |
+| 3/8 | 82% | 27% | 18% |
+| ≤ 2/8 | 25% | 25% | 75% |
+
+---
+
+## HOW TO ACT
+
+```
+Signal fires
+      │
+      ├── Fails any 1 of 4 HARD filters? ──► BLOCK
+      │
+      └── Count soft flags (0–7)
+                │
+                ├── 5+ flags ──► BLOCK
+                │
+                └── Calculate quality score (0–8)
+                          │
+                          ├── Score 7–8 ──► Full size, hold to TP4–5
+                          │
+                          ├── Score 5–6 ──► Normal size, take profit at TP3
+                          │
+                          ├── Score 3–4 ──► Half size, take profit at TP2
+                          │
+                          └── Score ≤ 2  ──► Skip or very small size
+```
+
+---
+
+## SUMMARY IN ONE LINE PER LAYER
+
+- **Hard filters** → gate keeping, blocks garbage
+- **Soft flags** → second gate, blocks borderline garbage (5+ = block)
+- **Quality score** → position sizing and exit planning, higher score = bigger size, hold longer

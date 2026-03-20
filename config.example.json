@@ -1,0 +1,45 @@
+{
+  "binance": {
+    "api_key": "",
+    "api_secret": ""
+  },
+  "telegram": {
+    "bot_token": "YOUR_BOT_TOKEN",
+    "chat_id": "YOUR_CHAT_ID"
+  },
+  "scanner": {
+    "timeframe": "1h",
+    "scan_interval_seconds": 900,
+    "breakout_lookback_candles": 24,
+    "consecutive_vol_candles": 3,
+    "consecutive_vol_min_ratio": 2.0,
+    "high_breakout_warning_pct": 5.0,
+    "max_price_change_24h_pct": 20.0,
+    "min_volume_usdt": 0,
+    "cooldown_hours": 168,
+    "excluded_symbols": ["USDCUSDT", "BTCDOMUSDT"]
+  },
+  "tracker": {
+    "enabled": true,
+    "max_age_hours": 168,
+    "price_update_interval_seconds": 300,
+    "data_dir": "data",
+    "take_profit_targets": [5, 10, 20, 30, 50, 75, 100],
+    "reversal_alert_enabled": true,
+    "min_reversal_peak_pct": 3.0,
+    "reversal_drop_from_peak_pct": 5.0,
+    "detailed_report_min_age_hours": 168,
+    "daily_report_hour": 0
+  },
+  "market_cap": {
+    "enabled": false,
+    "cache_minutes": 120
+  },
+  "rate_limit": {
+    "binance_delay_ms": 100
+  },
+  "logging": {
+    "level": "INFO",
+    "log_file": "scanner.log"
+  }
+}
