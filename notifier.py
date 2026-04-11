@@ -147,8 +147,10 @@ class TelegramNotifier:
 
         btc_trend = d.get("btc_trend", "unknown")
         btc_detail = d.get("btc_trend_detail", {})
-        btc_icons = {"ranging": "➡️", "pumping": "🟢", "dumping": "🔴", "unknown": "❓"}
+        btc_icons = {"ranging": "🟢", "pumping": "🟡", "dumping": "🔴", "unknown": "❓"}
+        btc_labels = {"ranging": "RANGING ✓", "pumping": "PUMPING", "dumping": "DUMPING", "unknown": "UNKNOWN"}
         btc_icon = btc_icons.get(btc_trend, "❓")
+        btc_label = btc_labels.get(btc_trend, "UNKNOWN")
 
         header = "⚠️ <b>BREAKOUT SIGNAL — HIGH BREAKOUT</b>" if high_brk else "🚨 <b>BREAKOUT SIGNAL</b>"
 
@@ -171,7 +173,7 @@ class TelegramNotifier:
         btc_chg_4h = btc_detail.get("btc_chg_4h")
         btc_chg_24h = btc_detail.get("btc_chg_24h")
         if btc_chg_4h is not None:
-            lines.append(f"₿ <b>BTC Trend:</b>  {btc_icon} {btc_trend.upper()}  (4h: {btc_chg_4h:+.2f}%  24h: {btc_chg_24h:+.2f}%)")
+            lines.append(f"₿ <b>BTC Trend:</b>  {btc_icon} {btc_label}  (4h: {btc_chg_4h:+.2f}%  24h: {btc_chg_24h:+.2f}%)")
             lines.append("")
 
         if high_brk:

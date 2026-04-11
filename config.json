@@ -55,10 +55,6 @@
       "skip_on_dump": true,
       "dump_threshold_pct": -3.0,
       "pump_threshold_pct": 3.0
-    },
-    "market_cap_warning": {
-      "enabled": true,
-      "threshold_usd": 200000000
     }
   },
   "tracker": {

@@ -155,10 +155,6 @@ class Scanner:
                            self.btc_dump_threshold, self.btc_pump_threshold)
             self.btc_trend_enabled = False
 
-        mcw = sc.get("market_cap_warning", {})
-        self.mcap_warn_enabled:      bool  = mcw.get("enabled", True)
-        self.mcap_warn_threshold:    float = mcw.get("threshold_usd", 200_000_000)
-
         self._candles_needed = max(self.brk_lookback + 1, self.consec_vol_candles, 20)
 
         self._binance = binance
