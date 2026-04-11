@@ -32,6 +32,7 @@
       "vol_24h_usdt_min": 5000000,
       "price_change_24h_max": 15.0,
       "ema50_distance_pct_max": 15.0,
+      "vol_ratio_max": 12.0,
       "max_flags_to_block": 4
     },
     "quality_score": {

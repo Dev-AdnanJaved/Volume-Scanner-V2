@@ -21,6 +21,7 @@ Soft flags — data-driven (each true adds 1 flag; 4+ flags = signal blocked):
   5. 24h volume < $5M (low liquidity)
   6. |24h price change| > 15% (overextended move)
   7. EMA50 distance > 15% (very far from trend support)
+  8. Vol ratio > 12 (extremely high volume spike)
 
 Quality score (0–8 points): higher = better signal.
   Data-driven scoring based on 333-signal backtest:
@@ -126,6 +127,7 @@ class Scanner:
         self.sf_vol_24h_min:         float = sf.get("vol_24h_usdt_min", 5_000_000)
         self.sf_price_chg_max:       float = sf.get("price_change_24h_max", 15.0)
         self.sf_ema50_dist_max:      float = sf.get("ema50_distance_pct_max", 15.0)
+        self.sf_vol_ratio_max:       float = sf.get("vol_ratio_max", 12.0)
         self.sf_max_flags:           int   = sf.get("max_flags_to_block", 4)
 
         qs = sc.get("quality_score", {})
@@ -506,6 +508,9 @@ class Scanner:
         if ema_dist is not None and ema_dist > self.sf_ema50_dist_max:
             flags.append(f"far_ema {ema_dist:.1f}%>{self.sf_ema50_dist_max}%")
 
+        if vol_ratio > self.sf_vol_ratio_max:
+            flags.append(f"high_vol_ratio {vol_ratio:.1f}>{self.sf_vol_ratio_max}")
+
         return len(flags), flags
 
     def _calc_quality_score(
@@ -675,7 +680,7 @@ class Scanner:
             f"RVOL &lt; {self.sf_rvol_min}x | mcap &gt; {self._fmt_vol_usd(self.sf_mcap_max)}",
             f"OI ratio &gt; {self.sf_oi_ratio_max} | funding &lt; {self.sf_funding_rate_min}",
             f"vol_24h &lt; {self._fmt_vol_usd(self.sf_vol_24h_min)} | 24h_chg &gt; ±{self.sf_price_chg_max}%",
-            f"ema50_dist &gt; {self.sf_ema50_dist_max}%",
+            f"ema50_dist &gt; {self.sf_ema50_dist_max}% | vol_ratio &gt; {self.sf_vol_ratio_max}",
             "",
             "<b>Quality Score:</b> 0–8 points (data-driven)",
             "",

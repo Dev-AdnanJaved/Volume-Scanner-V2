@@ -184,9 +184,9 @@ class TelegramNotifier:
 
         lines.append(f"⭐ <b>Quality:</b>  {q_score}/8  {grade}")
         if s_flags > 0:
-            lines.append(f"🚩 <b>Warnings:</b>  {s_flags}/7  ({', '.join(sf_details)})")
+            lines.append(f"🚩 <b>Warnings:</b>  {s_flags}/8  ({', '.join(sf_details)})")
         else:
-            lines.append(f"🚩 <b>Warnings:</b>  0/7")
+            lines.append(f"🚩 <b>Warnings:</b>  0/8")
         lines.append("")
 
         lines.extend([
