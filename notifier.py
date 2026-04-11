@@ -145,6 +145,11 @@ class TelegramNotifier:
         chg_icon = "🟢" if price_chg >= 0 else "🔴"
         high_brk = d.get("high_breakout_warning", False)
 
+        btc_trend = d.get("btc_trend", "unknown")
+        btc_detail = d.get("btc_trend_detail", {})
+        btc_icons = {"ranging": "➡️", "pumping": "🟢", "dumping": "🔴", "unknown": "❓"}
+        btc_icon = btc_icons.get(btc_trend, "❓")
+
         header = "⚠️ <b>BREAKOUT SIGNAL — HIGH BREAKOUT</b>" if high_brk else "🚨 <b>BREAKOUT SIGNAL</b>"
 
         base_coin = symbol.replace("USDT", "").replace("BUSD", "")
@@ -162,6 +167,13 @@ class TelegramNotifier:
             f"3️⃣ <b>24h Change:</b>  {chg_icon} {price_chg:+.1f}%",
             "",
         ]
+
+        btc_chg_4h = btc_detail.get("btc_chg_4h")
+        btc_chg_24h = btc_detail.get("btc_chg_24h")
+        if btc_chg_4h is not None:
+            lines.append(f"₿ <b>BTC Trend:</b>  {btc_icon} {btc_trend.upper()}  (4h: {btc_chg_4h:+.2f}%  24h: {btc_chg_24h:+.2f}%)")
+            lines.append("")
+
         if high_brk:
             lines.append(f"⚠️ <b>Warning:</b> Breakout margin {brk_margin:.2f}% > 5% — enter with caution")
             lines.append("")

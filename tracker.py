@@ -188,6 +188,8 @@ class SignalTracker:
             "quality_score":       alert.get("quality_score", 0),
             "quality_details":     alert.get("quality_details", []),
             "additional_data":     alert.get("additional_data", {}),
+            "btc_trend_at_entry":  alert.get("btc_trend", "unknown"),
+            "btc_trend_detail":    alert.get("btc_trend_detail", {}),
             "tp_sent":             [],
             "reversal_warned":     False,
             "outcome":             self._init_outcome(self._tp_targets),

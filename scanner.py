@@ -145,6 +145,20 @@ class Scanner:
         self.qs_price_chg_min:       float = qs.get("price_change_24h_min", 0)
         self.qs_price_chg_max:       float = qs.get("price_change_24h_max", 10.0)
 
+        bt = sc.get("btc_trend", {})
+        self.btc_trend_enabled:      bool  = bt.get("enabled", True)
+        self.btc_skip_on_dump:       bool  = bt.get("skip_on_dump", True)
+        self.btc_dump_threshold:     float = bt.get("dump_threshold_pct", -3.0)
+        self.btc_pump_threshold:     float = bt.get("pump_threshold_pct", 3.0)
+        if self.btc_dump_threshold >= self.btc_pump_threshold:
+            logger.warning("BTC trend: dump_threshold (%.1f) >= pump_threshold (%.1f) — disabling filter",
+                           self.btc_dump_threshold, self.btc_pump_threshold)
+            self.btc_trend_enabled = False
+
+        mcw = sc.get("market_cap_warning", {})
+        self.mcap_warn_enabled:      bool  = mcw.get("enabled", True)
+        self.mcap_warn_threshold:    float = mcw.get("threshold_usd", 200_000_000)
+
         self._candles_needed = max(self.brk_lookback + 1, self.consec_vol_candles, 20)
 
         self._binance = binance
@@ -154,6 +168,8 @@ class Scanner:
         self._cooldown = _CooldownTracker(cooldown_seconds=self.cooldown_hours * 3600)
         self._mark_prices: Dict[str, float] = {}
         self._tickers: Dict[str, dict] = {}
+        self._btc_trend: str = "unknown"
+        self._btc_trend_detail: Dict[str, float] = {}
         self._running = False
 
     @staticmethod
@@ -215,6 +231,51 @@ class Scanner:
         while self._running and time.time() < end:
             time.sleep(min(1.0, end - time.time()))
 
+    def _detect_btc_trend(self) -> None:
+        if not self.btc_trend_enabled:
+            self._btc_trend = "unknown"
+            self._btc_trend_detail = {}
+            return
+
+        try:
+            btc_4h = self._binance.get_closed_klines("BTCUSDT", "4h", 7)
+            if len(btc_4h) < 7:
+                logger.warning("BTC trend: insufficient 4h candles (%d/7) — marking unknown", len(btc_4h))
+                self._btc_trend = "unknown"
+                self._btc_trend_detail = {}
+                return
+
+            current_close = btc_4h[-1]["close"]
+            close_4h_ago = btc_4h[-2]["close"]
+            close_24h_ago = btc_4h[0]["close"]
+
+            chg_4h = ((current_close - close_4h_ago) / close_4h_ago) * 100 if close_4h_ago > 0 else 0
+            chg_24h = ((current_close - close_24h_ago) / close_24h_ago) * 100 if close_24h_ago > 0 else 0
+
+            avg_chg = (chg_4h + chg_24h) / 2
+
+            if avg_chg <= self.btc_dump_threshold:
+                trend = "dumping"
+            elif avg_chg >= self.btc_pump_threshold:
+                trend = "pumping"
+            else:
+                trend = "ranging"
+
+            self._btc_trend = trend
+            self._btc_trend_detail = {
+                "btc_chg_4h": round(chg_4h, 2),
+                "btc_chg_24h": round(chg_24h, 2),
+                "btc_close": current_close,
+            }
+            logger.info(
+                "BTC trend: %s  (4h: %+.2f%%, 24h: %+.2f%%, avg: %+.2f%%)",
+                trend, chg_4h, chg_24h, avg_chg,
+            )
+        except Exception as exc:
+            logger.warning("BTC trend detection failed: %s", exc)
+            self._btc_trend = "unknown"
+            self._btc_trend_detail = {}
+
     def _cycle(self) -> None:
         try:
             all_syms = self._binance.get_usdt_perpetual_symbols()
@@ -236,6 +297,16 @@ class Scanner:
         except Exception as exc:
             logger.warning("24h ticker fetch failed: %s", exc)
             self._tickers = {}
+
+        self._detect_btc_trend()
+
+        if self.btc_trend_enabled and self.btc_skip_on_dump and self._btc_trend == "dumping":
+            btc_d = self._btc_trend_detail
+            logger.info(
+                "Skipping scan cycle — BTC is DUMPING (4h: %+.2f%%, 24h: %+.2f%%)",
+                btc_d.get("btc_chg_4h", 0), btc_d.get("btc_chg_24h", 0),
+            )
+            return
 
         already_tracked: set = set()
         if self._tracker:
@@ -426,6 +497,8 @@ class Scanner:
             "quality_score":     quality_score,
             "quality_details":   quality_details,
             "additional_data":   additional,
+            "btc_trend":         self._btc_trend,
+            "btc_trend_detail":  self._btc_trend_detail,
         }
 
         if self._tracker:
