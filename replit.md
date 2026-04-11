@@ -8,9 +8,9 @@ A Python bot that monitors Binance USDT-M perpetual futures pairs for unusual tr
 - Price breakout confirmation
 - Open Interest surge detection
 - Market cap filtering via CoinGecko API
-- 3-layer signal filtering: hard filters (4 conditions), soft flags (7 data-driven warning conditions, 4+ blocks), quality score (0–8 data-driven points)
+- 3-layer signal filtering: hard filters (4 conditions), soft flags (8 data-driven warning conditions, 4+ blocks), quality score (0–8 data-driven points)
 - Quality score rewards: RVOL sweet spot (4-8x), adequate RVOL (≥2x), small market cap ($10-50M), moderate OI growth ratio (5-50), healthy funding (≥0), good liquidity (≥$10M 24h vol), breakout conviction (0.5-5%), positive momentum (0-10% 24h change)
-- Soft flags warn about: low RVOL (<2x), large market cap (>$200M), extreme OI ratio (>50), negative funding (<-0.02), low volume (<$5M), extreme price change (>±15%), far from EMA50 (>15%)
+- Soft flags warn about: low RVOL (<2x), large market cap (>$200M), extreme OI ratio (>50), negative funding (<-0.02), low volume (<$5M), extreme price change (>±15%), far from EMA50 (>15%), high vol ratio (>12)
 - All filter/flag/score thresholds configurable in config.json (scanner.hard_filters, scanner.soft_flags, scanner.quality_score)
 - Signal tracker with take-profit alerts, reversal detection, and outcome tracking
 - Detailed outcome block per signal: TP hit timestamps, max drawdown, signal type classification, close lifecycle (signal_closed/close_reason/close_time), BTC context (btc_change_entry_to_tp, btc_trend_during_signal)
