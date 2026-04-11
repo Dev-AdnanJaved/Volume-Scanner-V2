@@ -1,0 +1,50 @@
+is there anything common in any signals... which at leats 80% percent hitted at least tp5
+
+11:00 PM
+Let me dig specifically into that.
+
+
+Find all combinations with 80%+ TP5 rate
+Find all combinations with 80%+ TP5 rate
+Here are the clear answers:
+
+SINGLE CONDITION — only one hits 80%+:
+
+BTC ranging alone = 87% TP5, 64% TP10 across 107 signals. That's it. No single other variable hits 80% on its own with enough signals to trust.
+
+TWO CONDITIONS — multiple combos hit 80%+:
+
+Combination	TP5	TP10	Signals
+BTC ranging + score 5	96%	80%	25
+BTC ranging + Small mcap	94%	80%	35
+BTC ranging + 3 soft flags	94%	81%	32
+BTC ranging + OI 20-50	92%	50%	24
+BTC ranging + OI 5-50	91%	63%	67
+BTC ranging + score 4	87%	81%	31
+BTC ranging + rvol 4-8x	84%	80%	25
+Small mcap + rvol 4-8x	83%	61%	23
+Every single combination requires BTC ranging except the last one. BTC trend is the non-negotiable foundation.
+
+THREE CONDITIONS — the best signals you have:
+
+Combination	TP5	TP10	Signals
+BTC ranging + score 5 + OI 5-100	100%	82%	17
+BTC ranging + score 5 + OI 5-50	100%	80%	15
+BTC ranging + score 5 + Small mcap	100%	88%	8
+BTC ranging + score 4 + OI 5-100	95%	86%	22
+BTC ranging + score 4 + Small mcap	92%	92%	13
+BTC ranging + score 4 + rvol 4-8x	88%	88%	8
+BTC ranging + score 4 or 5 + Small mcap = 92% TP10. That's your golden setup.
+
+What this means practically:
+
+The formula for your highest accuracy signals is:
+
+BTC must be ranging — non-negotiable, without this everything falls apart
+Quality score 4 or 5 — these are your best performing scores despite the inversion issue
+Small market cap $10M-$50M — confirms the small coin advantage
+OI growth ratio 5-50 — moderate OI growth, not too high not too low
+RVOL 4-8x — the sweet spot
+When all these align you're looking at 88-100% TP5 and 80-92% TP10. That's genuinely high accuracy.
+
+The one thing to build now: A live BTC regime detector at signal fire time. Classify BTC as ranging/pumping/dumping based on its 4h or 24h price change when the signal fires. If BTC is dumping, skip the signal entirely — 73% fail rate makes it not worth trading. This single addition will cut your failures dramatically.

@@ -1,0 +1,73 @@
+Got both. Let me read everything now.Ran 4 commandsRan 4 commandsHere's the complete analysis of 333 completed signals across 1.5 months. This is the most valuable data yet.
+
+THE SINGLE MOST IMPORTANT FINDING — BTC TREND IS EVERYTHING
+BTC TrendTP5TP10FailedBig LossAvg PeakRanging87%64%13%50%27.2%Pumping35%16%65%43%7.2%Dumping27%19%73%77%7.6%
+This is massive. When BTC is ranging, 87% of signals hit TP5 and 64% hit TP10. When BTC is dumping, 73% of signals fail completely and 77% have big losses. BTC trend is the single most powerful filter you have.
+
+QUALITY SCORE IS INVERTED — MAJOR PROBLEM
+This is the most concerning finding. Your scoring system is working backwards:
+ScoreTP10FailedAvg Peak348%9%15.2%455%25%23.6%549%19%10.7%626%32%5.6%722%47%5.4%833%40%5.1%
+Higher score = worse performance. Score 4 has 55% TP10 and 23.6% avg peak. Score 7 has only 22% TP10 and 47% fail rate. Your quality scoring logic needs to be completely reviewed — it's currently rewarding bad signals.
+
+SOFT FLAGS ARE ALSO INVERTED
+FlagsTP10FailedAvg Peak0 flags29%49%5.1%1 flag27%35%5.6%2 flags35%25%8.1%3 flags51%23%17.5%4 flags53%19%19.8%
+More soft flags = better performance. This is completely backwards from what soft flags are supposed to do — they should warn about bad signals, not mark good ones. The soft flag system needs to be reviewed too.
+
+MARKET CAP SWEET SPOT CONFIRMED
+SizeTP10Avg PeakBig LossTiny $1-10M62%36%46%Small $10-50M50%18.1%45%Mid $50-200M40%4.9%40%Large $200M-1B23%6.3%26%
+Tiny and Small coins massively outperform. Large caps only 23% TP10. This is now confirmed across 1.5 months.
+
+RVOL SWEET SPOT CONFIRMED
+RVOLTP10Avg Peak<2x31%7.4%2-4x38%10.8%4-8x48%17.9%8-20x50%9.1%
+RVOL 4-8x is the sweet spot — 48% TP10 and highest avg peak.
+
+BTC RANGING + QUALITY SCORE COMBO
+When BTC is ranging AND quality score is 4 or 5:
+
+Score 4 + Ranging: 81% TP10, only 13% failed, avg peak 46%
+Score 5 + Ranging: 80% TP10, only 4% failed, avg peak 23%
+
+These are your best signals. 80%+ TP10 rate.
+
+FAILED SIGNALS — what they look like:
+94 failed signals (28%). Profile:
+
+73% happened during BTC dumping
+Avg lowest: -15.7% — these aren't small losses
+Avg OI ratio: 33.8 (low)
+Avg rvol: 3.4 (low)
+
+
+WHAT TO DO NOW — priority order:
+Urgent — fix quality scoring logic:
+Tell your agent to share the quality score calculation. It's rewarding wrong things. Score should increase with better conditions, not decrease. Based on this data the scoring weights are wrong.
+Urgent — fix soft flags:
+Soft flags are marking the best signals as warnings. Review what each flag triggers on — the thresholds are likely wrong.
+Add BTC trend as live filter:
+This is the biggest opportunity. If you can detect BTC ranging vs dumping in real time at signal fire time, you can skip signals during dumps and save 73% of future failures. Ask your agent to add btc_trend_live at signal creation — compare current BTC to its 4h or 24h price change to classify the regime.
+Add market cap soft filter:
+Large caps ($200M+) only 23% TP10. Add a soft warning for large cap signals.
+Keep collecting — you now have enough for proper filter rules.is there anything common in any signals... which at leats 80% percent hitted at least tp511:00 PMLet me dig specifically into that.Find all combinations with 80%+ TP5 rateFind all combinations with 80%+ TP5 rateHere are the clear answers:
+
+SINGLE CONDITION — only one hits 80%+:
+BTC ranging alone = 87% TP5, 64% TP10 across 107 signals. That's it. No single other variable hits 80% on its own with enough signals to trust.
+
+TWO CONDITIONS — multiple combos hit 80%+:
+CombinationTP5TP10SignalsBTC ranging + score 596%80%25BTC ranging + Small mcap94%80%35BTC ranging + 3 soft flags94%81%32BTC ranging + OI 20-5092%50%24BTC ranging + OI 5-5091%63%67BTC ranging + score 487%81%31BTC ranging + rvol 4-8x84%80%25Small mcap + rvol 4-8x83%61%23
+Every single combination requires BTC ranging except the last one. BTC trend is the non-negotiable foundation.
+
+THREE CONDITIONS — the best signals you have:
+CombinationTP5TP10SignalsBTC ranging + score 5 + OI 5-100100%82%17BTC ranging + score 5 + OI 5-50100%80%15BTC ranging + score 5 + Small mcap100%88%8BTC ranging + score 4 + OI 5-10095%86%22BTC ranging + score 4 + Small mcap92%92%13BTC ranging + score 4 + rvol 4-8x88%88%8
+BTC ranging + score 4 or 5 + Small mcap = 92% TP10. That's your golden setup.
+
+What this means practically:
+The formula for your highest accuracy signals is:
+
+BTC must be ranging — non-negotiable, without this everything falls apart
+Quality score 4 or 5 — these are your best performing scores despite the inversion issue
+Small market cap $10M-$50M — confirms the small coin advantage
+OI growth ratio 5-50 — moderate OI growth, not too high not too low
+RVOL 4-8x — the sweet spot
+
+When all these align you're looking at 88-100% TP5 and 80-92% TP10. That's genuinely high accuracy.
+The one thing to build now: A live BTC regime detector at signal fire time. Classify BTC as ranging/pumping/dumping based on its 4h or 24h price change when the signal fires. If BTC is dumping, skip the signal entirely — 73% fail rate makes it not worth trading. This single addition will cut your failures dramatically.
