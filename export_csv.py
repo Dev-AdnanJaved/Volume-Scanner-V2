@@ -101,6 +101,10 @@ def flatten_signal(sig: dict) -> dict:
             for ak, av in val.items():
                 row[f"add_{ak}"] = _flatten_value(av)
             continue
+        if key == "btc_trend_detail" and isinstance(val, dict):
+            for bk, bv in val.items():
+                row[bk] = _flatten_value(bv)
+            continue
         if key == "outcome" and isinstance(val, dict):
             for ok, ov in val.items():
                 row[f"out_{ok}"] = _flatten_value(ov)
@@ -151,6 +155,8 @@ def compute_fieldnames(signals: list) -> list[str]:
         "vol_candle_1_base_fmt", "vol_candle_2_base_fmt", "vol_candle_3_base_fmt",
         "vol_ratio", "rvol", "candle_colors",
         "btc_price", "candle_time",
+        "btc_trend", "btc_trend_at_entry",
+        "btc_chg_4h", "btc_chg_24h", "btc_close",
     ]
 
     ordered: list[str] = []
