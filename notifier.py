@@ -171,22 +171,22 @@ class TelegramNotifier:
         sf_details = d.get("soft_flag_details", [])
         q_details = d.get("quality_details", [])
 
-        if q_score == 8:
+        if q_score >= 7:
             grade = "🟢 EXCELLENT"
-        elif q_score >= 7:
-            grade = "🟢 STRONG"
         elif q_score >= 5:
-            grade = "🟡 NORMAL"
-        elif q_score >= 3:
-            grade = "🟠 WEAK"
+            grade = "🟢 STRONG"
+        elif q_score >= 4:
+            grade = "🟡 GOOD"
+        elif q_score >= 2:
+            grade = "🟠 FAIR"
         else:
-            grade = "🔴 POOR"
+            grade = "🔴 WEAK"
 
         lines.append(f"⭐ <b>Quality:</b>  {q_score}/8  {grade}")
         if s_flags > 0:
-            lines.append(f"🚩 <b>Flags:</b>  {s_flags}/7  ({', '.join(sf_details)})")
+            lines.append(f"🚩 <b>Warnings:</b>  {s_flags}/7  ({', '.join(sf_details)})")
         else:
-            lines.append(f"🚩 <b>Flags:</b>  0/7")
+            lines.append(f"🚩 <b>Warnings:</b>  0/7")
         lines.append("")
 
         lines.extend([

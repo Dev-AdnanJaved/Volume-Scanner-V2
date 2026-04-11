@@ -12,16 +12,26 @@ Hard filters (ALL must pass after main criteria):
   6. vol_24h_usdt > $5,000,000
   7. market_cap_usd < $1,000,000,000
 
-Soft flags (each true adds 1 flag; 5+ flags = signal blocked):
-  1. breakout_margin_pct > 1.5%
-  2. price_change_24h > 5%
-  3. ema50_distance_pct > 8%
-  4. vol_ratio > 10
-  5. vol_24h_usdt < $10,000,000
-  6. oi_change_pct > 12%
-  7. funding_rate < -0.01
+Soft flags — data-driven (each true adds 1 flag; 4+ flags = signal blocked):
+  Flags warn about conditions correlated with FAILURE in 333-signal backtest:
+  1. RVOL < 2x (low relative volume — 31% TP10 vs 48% for 4-8x)
+  2. Market cap > $200M (large caps — only 23% TP10)
+  3. OI growth ratio > 50 (extreme OI surge)
+  4. Funding rate < -0.02 (heavily negative funding)
+  5. 24h volume < $5M (low liquidity)
+  6. |24h price change| > 15% (overextended move)
+  7. EMA50 distance > 15% (very far from trend support)
 
-Quality score (0–8 points): higher = cleaner setup.
+Quality score (0–8 points): higher = better signal.
+  Data-driven scoring based on 333-signal backtest:
+  1. RVOL 4-8x (sweet spot — 48% TP10, 17.9% avg peak)
+  2. RVOL >= 2x (adequate volume — <2x underperforms)
+  3. Market cap $10-50M (best range — 50% TP10)
+  4. OI growth ratio 5-50 (moderate — best performing range)
+  5. Funding rate >= 0 (neutral/positive — healthy)
+  6. 24h volume >= $10M (good liquidity)
+  7. Breakout margin 0.5-5% (conviction without overextension)
+  8. 24h price change 0-10% (positive momentum, not extreme)
 
 Additional data is collected at signal time for analysis:
   - RVOL vs 20-candle baseline
@@ -109,25 +119,29 @@ class Scanner:
         self.hf_market_cap_max:      float = hf.get("market_cap_usd_max", 1_000_000_000)
 
         sf = sc.get("soft_flags", {})
-        self.sf_brk_margin_max:      float = sf.get("breakout_margin_pct_max", 1.5)
-        self.sf_price_chg_max:       float = sf.get("price_change_24h_max", 5.0)
-        self.sf_ema50_dist_max:      float = sf.get("ema50_distance_pct_max", 8.0)
-        self.sf_vol_ratio_max:       float = sf.get("vol_ratio_max", 10)
-        self.sf_vol_24h_min:         float = sf.get("vol_24h_usdt_min", 10_000_000)
-        self.sf_oi_change_max:       float = sf.get("oi_change_pct_max", 12.0)
-        self.sf_funding_rate_min:    float = sf.get("funding_rate_min", -0.01)
-        self.sf_max_flags:           int   = sf.get("max_flags_to_block", 5)
+        self.sf_rvol_min:            float = sf.get("rvol_min", 2.0)
+        self.sf_mcap_max:            float = sf.get("market_cap_usd_max", 200_000_000)
+        self.sf_oi_ratio_max:        float = sf.get("oi_growth_ratio_max", 50)
+        self.sf_funding_rate_min:    float = sf.get("funding_rate_min", -0.02)
+        self.sf_vol_24h_min:         float = sf.get("vol_24h_usdt_min", 5_000_000)
+        self.sf_price_chg_max:       float = sf.get("price_change_24h_max", 15.0)
+        self.sf_ema50_dist_max:      float = sf.get("ema50_distance_pct_max", 15.0)
+        self.sf_max_flags:           int   = sf.get("max_flags_to_block", 4)
 
         qs = sc.get("quality_score", {})
-        self.qs_vol_ratio_max:       float = qs.get("vol_ratio_max", 10)
-        self.qs_funding_min:         float = qs.get("funding_rate_min", 0)
-        self.qs_price_chg_max:       float = qs.get("price_change_24h_max", 5.0)
-        self.qs_brk_margin_max:      float = qs.get("breakout_margin_pct_max", 1.5)
-        self.qs_oi_change_max:       float = qs.get("oi_change_pct_max", 8.0)
-        self.qs_ema50_dist_max:      float = qs.get("ema50_distance_pct_max", 5.0)
+        self.qs_rvol_sweet_min:      float = qs.get("rvol_sweet_spot_min", 4.0)
+        self.qs_rvol_sweet_max:      float = qs.get("rvol_sweet_spot_max", 8.0)
+        self.qs_rvol_adequate_min:   float = qs.get("rvol_adequate_min", 2.0)
         self.qs_mcap_min:            float = qs.get("market_cap_usd_min", 10_000_000)
-        self.qs_mcap_max:            float = qs.get("market_cap_usd_max", 500_000_000)
+        self.qs_mcap_max:            float = qs.get("market_cap_usd_max", 50_000_000)
+        self.qs_oi_ratio_min:        float = qs.get("oi_growth_ratio_min", 5)
+        self.qs_oi_ratio_max:        float = qs.get("oi_growth_ratio_max", 50)
+        self.qs_funding_min:         float = qs.get("funding_rate_min", 0)
         self.qs_vol_24h_min:         float = qs.get("vol_24h_usdt_min", 10_000_000)
+        self.qs_brk_margin_min:      float = qs.get("breakout_margin_pct_min", 0.5)
+        self.qs_brk_margin_max:      float = qs.get("breakout_margin_pct_max", 5.0)
+        self.qs_price_chg_min:       float = qs.get("price_change_24h_min", 0)
+        self.qs_price_chg_max:       float = qs.get("price_change_24h_max", 10.0)
 
         self._candles_needed = max(self.brk_lookback + 1, self.consec_vol_candles, 20)
 
@@ -465,30 +479,32 @@ class Scanner:
     ) -> tuple:
         flags = []
 
-        if brk_margin_pct > self.sf_brk_margin_max:
-            flags.append(f"brk_margin {brk_margin_pct:.2f}%>{self.sf_brk_margin_max}%")
+        rvol = add.get("rvol_20")
+        if rvol is not None and rvol < self.sf_rvol_min:
+            flags.append(f"low_rvol {rvol:.1f}x<{self.sf_rvol_min}x")
 
-        if abs(price_chg_24h) > self.sf_price_chg_max:
-            flags.append(f"24h_chg {price_chg_24h:.1f}%>{self.sf_price_chg_max}%")
+        mcap = add.get("market_cap_usd")
+        if mcap is not None and mcap > self.sf_mcap_max:
+            flags.append(f"large_mcap {self._fmt_vol_usd(mcap)}>{self._fmt_vol_usd(self.sf_mcap_max)}")
 
-        ema_dist = add.get("ema50_distance_pct")
-        if ema_dist is not None and ema_dist > self.sf_ema50_dist_max:
-            flags.append(f"ema50_dist {ema_dist:.1f}%>{self.sf_ema50_dist_max}%")
-
-        if vol_ratio > self.sf_vol_ratio_max:
-            flags.append(f"vol_ratio {vol_ratio:.1f}>{self.sf_vol_ratio_max}")
-
-        vol_24h = add.get("vol_24h_usdt")
-        if vol_24h is not None and vol_24h < self.sf_vol_24h_min:
-            flags.append(f"vol_24h {self._fmt_vol_usd(vol_24h)}<{self._fmt_vol_usd(self.sf_vol_24h_min)}")
-
-        oi_chg = add.get("oi_change_pct")
-        if oi_chg is not None and oi_chg > self.sf_oi_change_max:
-            flags.append(f"oi_chg {oi_chg:.1f}%>{self.sf_oi_change_max}%")
+        oi_ratio = add.get("oi_growth_ratio")
+        if oi_ratio is not None and oi_ratio > self.sf_oi_ratio_max:
+            flags.append(f"extreme_oi {oi_ratio:.1f}>{self.sf_oi_ratio_max}")
 
         funding = add.get("funding_rate")
         if funding is not None and funding < self.sf_funding_rate_min:
-            flags.append(f"funding {funding:.4f}<{self.sf_funding_rate_min}")
+            flags.append(f"neg_funding {funding:.4f}<{self.sf_funding_rate_min}")
+
+        vol_24h = add.get("vol_24h_usdt")
+        if vol_24h is not None and vol_24h < self.sf_vol_24h_min:
+            flags.append(f"low_vol {self._fmt_vol_usd(vol_24h)}<{self._fmt_vol_usd(self.sf_vol_24h_min)}")
+
+        if abs(price_chg_24h) > self.sf_price_chg_max:
+            flags.append(f"extreme_chg {price_chg_24h:.1f}%>±{self.sf_price_chg_max}%")
+
+        ema_dist = add.get("ema50_distance_pct")
+        if ema_dist is not None and ema_dist > self.sf_ema50_dist_max:
+            flags.append(f"far_ema {ema_dist:.1f}%>{self.sf_ema50_dist_max}%")
 
         return len(flags), flags
 
@@ -501,34 +517,34 @@ class Scanner:
     ) -> tuple:
         points = []
 
-        if vol_ratio <= self.qs_vol_ratio_max:
-            points.append("vol_ratio")
+        rvol = add.get("rvol_20")
+        if rvol is not None and self.qs_rvol_sweet_min <= rvol <= self.qs_rvol_sweet_max:
+            points.append("rvol_sweet")
 
-        funding = add.get("funding_rate")
-        if funding is not None and funding >= self.qs_funding_min:
-            points.append("funding")
-
-        if abs(price_chg_24h) <= self.qs_price_chg_max:
-            points.append("24h_chg")
-
-        if brk_margin_pct <= self.qs_brk_margin_max:
-            points.append("brk_margin")
-
-        oi_chg = add.get("oi_change_pct")
-        if oi_chg is not None and oi_chg <= self.qs_oi_change_max:
-            points.append("oi_chg")
-
-        ema_dist = add.get("ema50_distance_pct")
-        if ema_dist is not None and ema_dist <= self.qs_ema50_dist_max:
-            points.append("ema50_dist")
+        if rvol is not None and rvol >= self.qs_rvol_adequate_min:
+            points.append("rvol_ok")
 
         mcap = add.get("market_cap_usd")
         if mcap is not None and self.qs_mcap_min <= mcap <= self.qs_mcap_max:
-            points.append("market_cap")
+            points.append("small_mcap")
+
+        oi_ratio = add.get("oi_growth_ratio")
+        if oi_ratio is not None and self.qs_oi_ratio_min <= oi_ratio <= self.qs_oi_ratio_max:
+            points.append("oi_moderate")
+
+        funding = add.get("funding_rate")
+        if funding is not None and funding >= self.qs_funding_min:
+            points.append("funding_ok")
 
         vol_24h = add.get("vol_24h_usdt")
         if vol_24h is not None and vol_24h >= self.qs_vol_24h_min:
-            points.append("vol_24h")
+            points.append("vol_24h_ok")
+
+        if self.qs_brk_margin_min <= brk_margin_pct <= self.qs_brk_margin_max:
+            points.append("brk_conviction")
+
+        if self.qs_price_chg_min <= price_chg_24h <= self.qs_price_chg_max:
+            points.append("momentum_ok")
 
         return len(points), points
 

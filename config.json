@@ -25,25 +25,29 @@
       "market_cap_usd_max": 1000000000
     },
     "soft_flags": {
-      "breakout_margin_pct_max": 1.5,
-      "price_change_24h_max": 5.0,
-      "ema50_distance_pct_max": 8.0,
-      "vol_ratio_max": 10,
-      "vol_24h_usdt_min": 10000000,
-      "oi_change_pct_max": 12.0,
-      "funding_rate_min": -0.01,
-      "max_flags_to_block": 5
+      "rvol_min": 2.0,
+      "market_cap_usd_max": 200000000,
+      "oi_growth_ratio_max": 50,
+      "funding_rate_min": -0.02,
+      "vol_24h_usdt_min": 5000000,
+      "price_change_24h_max": 15.0,
+      "ema50_distance_pct_max": 15.0,
+      "max_flags_to_block": 4
     },
     "quality_score": {
-      "vol_ratio_max": 10,
-      "funding_rate_min": 0,
-      "price_change_24h_max": 5.0,
-      "breakout_margin_pct_max": 1.5,
-      "oi_change_pct_max": 8.0,
-      "ema50_distance_pct_max": 5.0,
+      "rvol_sweet_spot_min": 4.0,
+      "rvol_sweet_spot_max": 8.0,
+      "rvol_adequate_min": 2.0,
       "market_cap_usd_min": 10000000,
-      "market_cap_usd_max": 500000000,
-      "vol_24h_usdt_min": 10000000
+      "market_cap_usd_max": 50000000,
+      "oi_growth_ratio_min": 5,
+      "oi_growth_ratio_max": 50,
+      "funding_rate_min": 0,
+      "vol_24h_usdt_min": 10000000,
+      "breakout_margin_pct_min": 0.5,
+      "breakout_margin_pct_max": 5.0,
+      "price_change_24h_min": 0,
+      "price_change_24h_max": 10.0
     }
   },
   "tracker": {
@@ -59,7 +63,7 @@
     "daily_report_hour": 0
   },
   "market_cap": {
-    "enabled": false,
+    "enabled": true,
     "cache_minutes": 120
   },
   "rate_limit": {
