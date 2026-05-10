@@ -225,6 +225,11 @@ class AutoTrader:
         at = config.get("auto_trade", {})
         self._enabled: bool          = at.get("enabled", False)
         self._leverage: int          = at.get("leverage", 20)
+        self._leverage_steps: list   = at.get("leverage_fallback_steps", [self._leverage])
+        self._leverage_margin_map: dict = {
+            int(k): float(v)
+            for k, v in at.get("leverage_margin_map", {}).items()
+        }
         self._margin_pct: float      = at.get("margin_pct", 2.0)
         self._sl_pct: float          = at.get("sl_pct", 7.0)
         self._tp1_pct: float         = at.get("tp1_pct", 10.0)
@@ -370,14 +375,38 @@ class AutoTrader:
             price_tick = sym_info["price_tick"]
             price_prec = sym_info["price_prec"]
 
-            # Set leverage
-            try:
-                await client.futures_change_leverage(
-                    symbol=symbol, leverage=self._leverage
+            # Set leverage — try each fallback step until one succeeds
+            actual_leverage: int | None = None
+            for lev in self._leverage_steps:
+                try:
+                    await client.futures_change_leverage(symbol=symbol, leverage=lev)
+                    actual_leverage = lev
+                    logger.info("AutoTrader: %s leverage = %dx", symbol, lev)
+                    break
+                except Exception as e:
+                    logger.warning(
+                        "AutoTrader: %s leverage %dx rejected — trying next step: %s",
+                        symbol, lev, e,
+                    )
+
+            if actual_leverage is None:
+                logger.error(
+                    "AutoTrader: %s — all leverage steps %s failed, aborting trade",
+                    symbol, self._leverage_steps,
                 )
-                logger.info("AutoTrader: %s leverage = %dx", symbol, self._leverage)
-            except Exception as e:
-                logger.warning("AutoTrader: %s set leverage failed (non-fatal): %s", symbol, e)
+                await self._notify(
+                    f"❌ <b>AutoTrader skipped</b> {symbol}\n"
+                    f"Could not set any leverage from {self._leverage_steps}"
+                )
+                self._open_trades.pop(symbol, None)
+                return
+
+            # Pick margin for this leverage (falls back to default margin_pct)
+            actual_margin_pct = self._leverage_margin_map.get(actual_leverage, self._margin_pct)
+            logger.info(
+                "AutoTrader: %s using leverage=%dx margin=%.2f%%",
+                symbol, actual_leverage, actual_margin_pct,
+            )
 
             # Get available USDT balance
             balance_info = await client.futures_account_balance()
@@ -408,8 +437,8 @@ class AutoTrader:
                 return
 
             # Calculate quantities
-            notional = usdt_balance * (self._margin_pct / 100.0)
-            raw_total = notional * self._leverage / entry_price
+            notional = usdt_balance * (actual_margin_pct / 100.0)
+            raw_total = notional * actual_leverage / entry_price
             qty1 = _round_step(raw_total * (self._tp1_qty_pct / 100.0), qty_step)
             qty2 = _round_step(raw_total * (self._tp2_qty_pct / 100.0), qty_step)
             entry_qty = qty1 + qty2
@@ -475,6 +504,8 @@ class AutoTrader:
                 "price_tick":  price_tick,
                 "price_prec":  price_prec,
                 "qty_step":    qty_step,
+                "leverage":    actual_leverage,
+                "margin_pct":  actual_margin_pct,
             }
 
             await self._notify(
@@ -483,8 +514,8 @@ class AutoTrader:
                 f"📌 <b>{symbol}</b>   🔥 Monster {monster_score}/9\n"
                 f"\n"
                 f"💰 Entry:    ${entry_price:.4f}\n"
-                f"📊 Qty:      {entry_qty}  ({self._leverage}x leverage)\n"
-                f"💵 Margin:   ${notional:.2f}  ({self._margin_pct}% of balance)\n"
+                f"📊 Qty:      {entry_qty}  ({actual_leverage}x leverage)\n"
+                f"💵 Margin:   ${notional:.2f}  ({actual_margin_pct}% of balance)\n"
                 f"\n"
                 f"🎯 TP1:     ${tp1_price:.4f}  (+{self._tp1_pct}% · {self._tp1_qty_pct:.0f}% pos)\n"
                 f"🎯 TP2:     ${tp2_price:.4f}  (+{self._tp2_pct}% · {self._tp2_qty_pct:.0f}% pos)\n"
@@ -533,11 +564,12 @@ class AutoTrader:
                             _cancel_order(client, symbol, tp2_id),
                             return_exceptions=True,
                         )
-                        lev_loss = -self._sl_pct * self._leverage
+                        trade_lev = trade.get("leverage", self._leverage)
+                        lev_loss = -self._sl_pct * trade_lev
                         await self._notify(
                             f"🛑 <b>SL HIT</b> — {symbol}\n"
                             f"Entry ${trade['entry']:.4f} → SL ${trade['sl_price']:.4f}\n"
-                            f"Loss: -{self._sl_pct}%  (×{self._leverage} = {lev_loss:.1f}%)"
+                            f"Loss: -{self._sl_pct}%  (×{trade_lev} = {lev_loss:.1f}%)"
                         )
                         self._open_trades.pop(symbol, None)
                         return
@@ -558,11 +590,12 @@ class AutoTrader:
                             self._open_trades[symbol]["sl_id"]    = new_sl_id
                             self._open_trades[symbol]["sl_price"]  = be_price
 
-                        lev_tp1 = self._tp1_pct * self._leverage
+                        trade_lev = trade.get("leverage", self._leverage)
+                        lev_tp1 = self._tp1_pct * trade_lev
                         msg = (
                             f"✅ <b>TP1 HIT</b> — {symbol}\n"
                             f"Closed {self._tp1_qty_pct:.0f}% @ ${trade['tp1_price']:.4f}  "
-                            f"(+{self._tp1_pct}% · ×{self._leverage} = +{lev_tp1:.1f}%)\n"
+                            f"(+{self._tp1_pct}% · ×{trade_lev} = +{lev_tp1:.1f}%)\n"
                         )
                         if self._move_sl_to_be:
                             msg += f"🔄 SL moved to breakeven (${be_price:.4f})\n"
@@ -594,12 +627,13 @@ class AutoTrader:
 
                     if _is_filled(tp2_status):
                         await _cancel_order(client, symbol, sl_id)
-                        lev_tp2 = self._tp2_pct * self._leverage
+                        trade_lev = trade.get("leverage", self._leverage)
+                        lev_tp2 = self._tp2_pct * trade_lev
                         await self._notify(
                             f"🚀 <b>TP2 HIT — FULL EXIT</b> — {symbol}\n"
                             f"TP1: +{self._tp1_pct}% on {self._tp1_qty_pct:.0f}%  ✅\n"
                             f"TP2: +{self._tp2_pct}%  "
-                            f"(×{self._leverage} = +{lev_tp2:.1f}%)  🚀\n"
+                            f"(×{trade_lev} = +{lev_tp2:.1f}%)  🚀\n"
                             f"🔥 Monster score: {trade['monster_score']}/9"
                         )
                         self._open_trades.pop(symbol, None)

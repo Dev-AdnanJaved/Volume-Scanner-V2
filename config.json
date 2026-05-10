@@ -87,6 +87,13 @@
   "auto_trade": {
     "enabled": false,
     "leverage": 20,
+    "leverage_fallback_steps": [20, 15, 10, 5],
+    "leverage_margin_map": {
+      "20": 2.0,
+      "15": 2.5,
+      "10": 3.0,
+      "5": 4.0
+    },
     "margin_pct": 2.0,
     "sl_pct": 7.0,
     "tp1_pct": 10.0,
