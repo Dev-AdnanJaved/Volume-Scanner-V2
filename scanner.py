@@ -497,6 +497,10 @@ class Scanner:
             "btc_trend_detail":  self._btc_trend_detail,
         }
 
+        monster_score = self._calculate_monster_score(alert)
+        alert["monster_score"] = monster_score
+        alert["is_monster_candidate"] = monster_score >= 9
+
         if self._tracker:
             self._tracker.record_signal(alert)
 
@@ -540,6 +544,45 @@ class Scanner:
             return "market_cap_usd"
 
         return None
+
+    @staticmethod
+    def _calculate_monster_score(alert: dict) -> int:
+        ad = alert.get("additional_data", {})
+        score = 0
+
+        if ad.get("funding_in_ideal_range") == True:
+            score += 1
+
+        if ad.get("is_compressed") == False:
+            score += 1
+
+        mcap = ad.get("market_cap_usd") or 0
+        if 5_000_000 <= mcap <= 200_000_000:
+            score += 1
+
+        if (alert.get("quality_score") or 0) >= 4:
+            score += 1
+
+        if (alert.get("soft_flags") or 0) <= 2:
+            score += 1
+
+        fr = ad.get("funding_rate") or 0
+        if fr > -0.01:
+            score += 1
+
+        if fr > 0:
+            score += 1
+
+        if ad.get("price_above_ema50_4h") == True:
+            score += 1
+
+        if alert.get("btc_trend") == "ranging":
+            score += 1
+
+        if alert.get("signal_type") in ["fast", "slow"]:
+            score += 1
+
+        return score
 
     def _count_soft_flags(
         self,

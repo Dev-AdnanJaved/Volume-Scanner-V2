@@ -201,6 +201,13 @@ class TelegramNotifier:
             lines.append(f"🚩 <b>Warnings:</b>  {s_flags}/8  ({', '.join(sf_details)})")
         else:
             lines.append(f"🚩 <b>Warnings:</b>  0/8")
+
+        m_score = d.get("monster_score", 0)
+        is_monster = d.get("is_monster_candidate", False)
+        if is_monster:
+            lines.append(f"🔥 <b>Monster Score:</b>  {m_score}/10  🔥🔥🔥 MONSTER SIGNAL!")
+        else:
+            lines.append(f"🔥 <b>Monster Score:</b>  {m_score}/10")
         lines.append("")
 
         lines.extend([

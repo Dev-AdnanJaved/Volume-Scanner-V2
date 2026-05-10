@@ -190,6 +190,8 @@ class SignalTracker:
             "additional_data":     alert.get("additional_data", {}),
             "btc_trend_at_entry":  alert.get("btc_trend", "unknown"),
             "btc_trend_detail":    alert.get("btc_trend_detail", {}),
+            "monster_score":       alert.get("monster_score", 0),
+            "is_monster_candidate": alert.get("is_monster_candidate", False),
             "tp_sent":             [],
             "reversal_warned":     False,
             "outcome":             self._init_outcome(self._tp_targets),
