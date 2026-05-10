@@ -150,6 +150,7 @@ def main() -> None:
             chat_id=config["telegram"]["chat_id"],
             tracker=tracker,
             binance=binance,
+            config=config,
         )
         cmd_thread = threading.Thread(
             target=cmd_listener.run, name="commands", daemon=True,

@@ -145,6 +145,9 @@ class Scanner:
         self.qs_price_chg_min:       float = qs.get("price_change_24h_min", 0)
         self.qs_price_chg_max:       float = qs.get("price_change_24h_max", 10.0)
 
+        mn = config.get("monster", {})
+        self.monster_threshold:      int   = mn.get("candidate_threshold", 9)
+
         bt = sc.get("btc_trend", {})
         self.btc_trend_enabled:      bool  = bt.get("enabled", True)
         self.btc_skip_on_dump:       bool  = bt.get("skip_on_dump", True)
@@ -499,7 +502,7 @@ class Scanner:
 
         monster_score = self._calculate_monster_score(alert)
         alert["monster_score"] = monster_score
-        alert["is_monster_candidate"] = monster_score >= 9
+        alert["is_monster_candidate"] = monster_score >= self.monster_threshold
 
         if self._tracker:
             self._tracker.record_signal(alert)

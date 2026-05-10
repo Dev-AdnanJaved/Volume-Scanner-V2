@@ -41,6 +41,7 @@ class TelegramCommandListener:
         chat_id: str,
         tracker: SignalTracker,
         binance: BinanceClient,
+        config: dict = None,
     ) -> None:
         self._token = bot_token
         self._chat_id = str(chat_id)
@@ -49,6 +50,9 @@ class TelegramCommandListener:
         self._session = requests.Session()
         self._offset: int = 0
         self._running = False
+        mn = (config or {}).get("monster", {})
+        self._monster_report_min_score: int = mn.get("report_min_score", 8)
+        self._monster_candidate_threshold: int = mn.get("candidate_threshold", 9)
 
     def _url(self, method: str) -> str:
         return self.API.format(token=self._token, method=method)
@@ -272,6 +276,7 @@ class TelegramCommandListener:
             "/detailed_report": lambda: self._cmd_detailed_report(chat_id),
             "/export_csv":      lambda: self._cmd_export_csv(chat_id),
             "/validate":        lambda: self._cmd_validate(chat_id),
+            "/monster":         lambda: self._cmd_monster(chat_id),
             "/help":            lambda: self._cmd_help(chat_id),
             "/start":           lambda: self._cmd_help(chat_id),
         }
@@ -921,6 +926,105 @@ class TelegramCommandListener:
 
         self._send(chat_id, "\n".join(lines))
 
+    # ── /monster ─────────────────────────────────────────────────────
+
+    def _cmd_monster(self, chat_id: str) -> None:
+        min_score = self._monster_report_min_score
+        candidate_threshold = self._monster_candidate_threshold
+        self._send(chat_id, f"⏳ Loading monster signals (score ≥ {min_score}/10)…")
+
+        try:
+            prices = self._binance.get_mark_prices()
+            self._tracker.apply_prices(prices)
+        except Exception:
+            prices = {}
+
+        active_signals = self._tracker.get_active_signals()
+        history = self._tracker.get_history()
+        tp_targets = self._tracker.tp_targets
+
+        active_monsters = [s for s in active_signals if (s.get("monster_score") or 0) >= min_score]
+        history_monsters = [s for s in history if (s.get("monster_score") or 0) >= min_score]
+        all_monsters = active_monsters + history_monsters
+
+        if not all_monsters:
+            self._send(chat_id, f"🔥 No monster signals found with score ≥ {min_score}/10.")
+            return
+
+        total = len(all_monsters)
+        active_count = len(active_monsters)
+        closed_count = len(history_monsters)
+
+        running = sum(
+            1 for s in active_monsters
+            if not any(s.get("outcome", {}).get(f"tp{tp}_hit", False) for tp in tp_targets)
+        )
+
+        tp_counts = {}
+        for tp in tp_targets:
+            tp_counts[tp] = sum(
+                1 for s in all_monsters if s.get("outcome", {}).get(f"tp{tp}_hit", False)
+            )
+
+        peak_pcts = []
+        for s in all_monsters:
+            entry = s.get("entry_price", 0)
+            highest = s.get("highest_price", 0)
+            sym = s.get("symbol", "")
+            cur = prices.get(sym, highest)
+            if cur > highest:
+                highest = cur
+            if entry > 0 and highest > 0:
+                peak_pcts.append(((highest - entry) / entry) * 100)
+
+        score_dist: dict = {}
+        for s in all_monsters:
+            sc = s.get("monster_score", 0)
+            score_dist[sc] = score_dist.get(sc, 0) + 1
+
+        lines = [
+            f"🔥 <b>MONSTER SIGNALS REPORT</b>",
+            f"{'━' * 28}",
+            f"",
+            f"🎯 Report threshold:  score ≥ {min_score}/10",
+            f"🔥 Candidate flag:    score ≥ {candidate_threshold}/10",
+            f"",
+            f"📊 Total monsters:   <b>{total}</b>",
+            f"🟢 Active:           {active_count}  ({running} with no TP yet)",
+            f"📜 Archived/closed:  {closed_count}",
+            f"",
+            f"━━━ 🎯 TP HIT RATES ━━━",
+        ]
+
+        for tp in tp_targets:
+            cnt = tp_counts[tp]
+            pct = cnt / total * 100 if total > 0 else 0
+            lines.append(f"TP +{tp}%:".ljust(11) + f"  {cnt}/{total}  ({pct:.0f}%)")
+
+        lines.append("")
+        lines.append("━━━ 📈 PERFORMANCE ━━━")
+        if peak_pcts:
+            avg_peak = sum(peak_pcts) / len(peak_pcts)
+            best_peak = max(peak_pcts)
+            lines.append(f"Avg peak:   {avg_peak:+.2f}%")
+            lines.append(f"Best peak:  {best_peak:+.2f}%")
+
+        lines.append("")
+        lines.append("━━━ 🔢 SCORE BREAKDOWN ━━━")
+        for sc in sorted(score_dist.keys(), reverse=True):
+            bar = "🔥" if sc >= candidate_threshold else "⭐"
+            lines.append(f"{bar} Score {sc}/10:  {score_dist[sc]} signal{'s' if score_dist[sc] != 1 else ''}")
+
+        lines.append("")
+        lines.append(f"📎 Sending JSON with all {total} monster signals…")
+
+        self._send(chat_id, "\n".join(lines))
+
+        self._send_chunked_json(
+            chat_id, all_monsters, "monster_signals",
+            f"🔥 Monster Signals — score ≥ {min_score}/10  ({total} signals)"
+        )
+
     # ── /help ────────────────────────────────────────────────────────
 
     def _cmd_help(self, chat_id: str) -> None:
@@ -937,6 +1041,8 @@ class TelegramCommandListener:
             "                   peak, lowest, exit prices\n"
             "/export_csv — Flat CSV of all signals for analysis\n"
             "/validate — Data integrity check on active signals\n"
+            f"/monster — Monster signals report (score ≥ {self._monster_report_min_score}/10)\n"
+            "           Text summary + JSON file of all monster signals\n"
             "/help — This message\n\n"
             f"📡 Tracking window: {self._tracker.max_age_hours}h\n"
             "🏔 Prices update every 5 min\n"
