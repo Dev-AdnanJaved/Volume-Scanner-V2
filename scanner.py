@@ -582,10 +582,7 @@ class Scanner:
         if alert.get("btc_trend") == "ranging":
             score += 1
 
-        if alert.get("signal_type") in ["fast", "slow"]:
-            score += 1
-
-        return score
+        return score  # 0 to 9
 
     def _count_soft_flags(
         self,
