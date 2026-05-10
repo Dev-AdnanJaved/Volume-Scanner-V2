@@ -10,6 +10,7 @@ Sends:
 
 from __future__ import annotations
 
+import html
 import logging
 import time
 
@@ -198,7 +199,8 @@ class TelegramNotifier:
 
         lines.append(f"⭐ <b>Quality:</b>  {q_score}/8  {grade}")
         if s_flags > 0:
-            lines.append(f"🚩 <b>Warnings:</b>  {s_flags}/8  ({', '.join(sf_details)})")
+            escaped = ", ".join(html.escape(f) for f in sf_details)
+            lines.append(f"🚩 <b>Warnings:</b>  {s_flags}/8  ({escaped})")
         else:
             lines.append(f"🚩 <b>Warnings:</b>  0/8")
 
