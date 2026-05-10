@@ -83,5 +83,19 @@
   "monster": {
     "candidate_threshold": 9,
     "report_min_score": 8
+  },
+  "auto_trade": {
+    "enabled": false,
+    "leverage": 20,
+    "margin_pct": 2.0,
+    "sl_pct": 7.0,
+    "tp1_pct": 10.0,
+    "tp1_qty_pct": 50.0,
+    "tp2_pct": 30.0,
+    "tp2_qty_pct": 50.0,
+    "move_sl_to_breakeven_after_tp1": true,
+    "hedge_mode": false,
+    "watch_interval_seconds": 30,
+    "max_open_trades": 5
   }
 }

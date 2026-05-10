@@ -99,6 +99,7 @@ class Scanner:
         notifier: TelegramNotifier,
         tracker: Optional[SignalTracker] = None,
         market_cap: Optional[MarketCapProvider] = None,
+        trader=None,
     ) -> None:
         sc = config["scanner"]
 
@@ -164,6 +165,7 @@ class Scanner:
         self._tg = notifier
         self._tracker = tracker
         self._market_cap = market_cap
+        self._trader = trader
         self._cooldown = _CooldownTracker(cooldown_seconds=self.cooldown_hours * 3600)
         self._mark_prices: Dict[str, float] = {}
         self._tickers: Dict[str, dict] = {}
@@ -337,6 +339,8 @@ class Scanner:
                 if data:
                     if self._tg.send_alert(data):
                         alerts += 1
+                    if data.get("is_monster_candidate") and self._trader:
+                        self._trader.submit(data)
                     time.sleep(0.3)
             except Exception:
                 logger.error("Error analysing %s", sym["symbol"], exc_info=True)

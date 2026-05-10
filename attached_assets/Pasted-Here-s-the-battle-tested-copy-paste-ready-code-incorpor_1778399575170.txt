@@ -1,0 +1,178 @@
+Here's the battle-tested, copy-paste-ready code incorporating every lesson learned:
+
+import asyncio
+import uuid
+import time
+from binance import AsyncClient
+# ── helpers ──────────────────────────────────────────────────────────────────
+def _order_id(o: dict):
+    """Works for both regular orders (orderId) and algo/conditional orders (algoId)."""
+    return o.get("orderId") or o.get("algoId")
+def _order_status_str(o: dict) -> str:
+    return (o.get("status") or o.get("algoStatus") or "").upper()
+def _order_type_str(o: dict) -> str:
+    return (o.get("type") or o.get("orderType") or "").upper()
+# ── TP placement (regular LIMIT order — always works) ─────────────────────────
+async def place_tp(client: AsyncClient, symbol: str, qty: float, tp_price: float,
+                   is_hedge: bool, attempts: int = 3) -> int | None:
+    delay = 0.3
+    for i in range(1, attempts + 1):
+        try:
+            kw = {"positionSide": "LONG"} if is_hedge else {"reduceOnly": True}
+            res = await client.futures_create_order(
+                symbol=symbol,
+                side="SELL",
+                type="LIMIT",
+                price=str(tp_price),
+                quantity=qty,
+                timeInForce="GTC",
+                **kw,
+            )
+            oid = _order_id(res)
+            if oid:
+                print(f"{symbol} TP placed id={oid} @ {tp_price}")
+                return oid
+        except Exception as e:
+            print(f"{symbol} TP attempt {i} failed: {e}")
+        if i < attempts:
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 2.0)
+    return None
+# ── SL placement (STOP_MARKET → Binance Conditional/Algo bucket) ──────────────
+#
+# KEY LESSONS from production:
+#   1. STOP_MARKET orders go into Binance's "Conditional Orders" bucket.
+#      They return {algoId, clientAlgoId, algoStatus} NOT {orderId, clientOrderId}.
+#   2. python-binance OVERRIDES your newClientOrderId on these orders.
+#   3. futures_get_open_orders / futures_get_order return -2013 for them.
+#   4. NEVER retry SL placement blindly — each retry silently places another
+#      real conditional order on Binance, leaving you with multiple stale SLs.
+#   5. Trust the response from futures_create_order. If no exception → SL is live.
+async def place_sl(client: AsyncClient, symbol: str, qty: float, sl_price: float,
+                   is_hedge: bool) -> int | str | None:
+    """
+    Places SL exactly once. Returns algoId (int) on success, None on failure.
+    Only retries on a hard exception (network/rate-limit), never on 'no id in response'.
+    """
+    cid = f"BOTSL{uuid.uuid4().hex[:10]}{int(time.time()) % 10000}"[:30]
+    kw = {"positionSide": "LONG", "quantity": qty} if is_hedge else {"reduceOnly": True, "quantity": qty}
+    params = dict(
+        symbol=symbol,
+        side="SELL",
+        type="STOP_MARKET",
+        stopPrice=str(sl_price),
+        workingType="MARK_PRICE",   # trigger on mark price, not last price
+        newClientOrderId=cid,       # python-binance may override this — that's OK
+        **kw,
+    )
+    for i in range(1, 3):           # max 2 attempts on hard exceptions only
+        try:
+            res = await client.futures_create_order(**params)
+            # Algo response has algoId; regular response has orderId.
+            oid = _order_id(res)
+            if oid is None:
+                # Response had no id but no exception either → Binance accepted it.
+                print(f"{symbol} SL placed (no id in response, trusting Binance) cid={cid}")
+                return cid          # return cid as a sentinel — cancel logic handles this
+            print(f"{symbol} SL placed id={oid} trigger={sl_price}")
+            return oid
+        except Exception as e:
+            msg = str(e)
+            print(f"{symbol} SL attempt {i} exception: {e}")
+            if "-4130" in msg or "is existing" in msg:
+                # Binance says 'an SL already exists' — a previous attempt landed.
+                print(f"{symbol} SL already exists on Binance (got -4130) — trusting it")
+                return cid          # position IS protected
+            if i < 2:
+                await asyncio.sleep(0.4)
+    return None
+# ── Cancel (works for both regular orders and algo/conditional orders) ─────────
+async def cancel_order(client: AsyncClient, symbol: str, order_id: int | str):
+    """Cancel a TP or SL. Falls back to the algo endpoint if the regular one fails."""
+    if order_id is None:
+        return
+    try:
+        if isinstance(order_id, int) or (isinstance(order_id, str) and order_id.isdigit()):
+            await client.futures_cancel_order(symbol=symbol, orderId=int(order_id))
+        else:
+            await client.futures_cancel_order(symbol=symbol, origClientOrderId=order_id)
+        return
+    except Exception as e:
+        msg = str(e)
+        if "Unknown order" in msg or "-2011" in msg:
+            return  # already gone — that's fine
+        # Regular cancel failed → try the algo/conditional endpoint
+        try:
+            data = {"symbol": symbol}
+            if isinstance(order_id, int) or (isinstance(order_id, str) and order_id.isdigit()):
+                data["algoId"] = int(order_id)
+            else:
+                data["clientAlgoId"] = order_id
+            await client._request_futures_api("delete", "algo/futures/order", True, data=data)
+            print(f"{symbol} cancelled via algo endpoint id={order_id}")
+        except Exception as e2:
+            msg2 = str(e2)
+            if "Unknown order" not in msg2 and "-2011" not in msg2:
+                print(f"{symbol} cancel failed: {e} / algo: {e2}")
+# ── Status check (works for both buckets) ─────────────────────────────────────
+async def get_order_status(client: AsyncClient, symbol: str, order_id: int | str) -> dict | None:
+    """Returns the order dict with a normalised 'status' field, or None."""
+    if order_id is None:
+        return None
+    try:
+        if isinstance(order_id, int) or (isinstance(order_id, str) and order_id.isdigit()):
+            return await client.futures_get_order(symbol=symbol, orderId=int(order_id))
+        return await client.futures_get_order(symbol=symbol, origClientOrderId=order_id)
+    except Exception as e:
+        if "-2013" not in str(e):
+            return None
+    # -2013 means it's in the algo/conditional bucket — query there instead
+    try:
+        res = await client._request_futures_api(
+            "get", "algo/futures/openOrders", True, data={"symbol": symbol}
+        )
+        orders = res.get("orders") if isinstance(res, dict) else (res or [])
+        for o in (orders or []):
+            if str(o.get("algoId")) == str(order_id) or o.get("clientAlgoId") == str(order_id):
+                st = o.get("algoStatus") or o.get("status")
+                return {**o, "status": st}   # normalise field name
+    except Exception:
+        pass
+    return None
+def is_filled(status_dict: dict | None) -> bool:
+    if not status_dict or isinstance(status_dict, Exception):
+        return False
+    return _order_status_str(status_dict) == "FILLED"
+# ── Usage example ─────────────────────────────────────────────────────────────
+async def open_trade_with_brackets(client, symbol, qty, entry, tp_price, sl_price, is_hedge):
+    tp_id, sl_id = await asyncio.gather(
+        place_tp(client, symbol, qty, tp_price, is_hedge),
+        place_sl(client, symbol, qty, sl_price, is_hedge),
+    )
+    return {"tp_order_id": tp_id, "sl_order_id": sl_id}
+async def watch_trade(client, symbol, tp_id, sl_id):
+    """Poll until TP or SL fills, then cancel the sibling."""
+    delay = 0.5
+    while True:
+        tp_status, sl_status = await asyncio.gather(
+            get_order_status(client, symbol, tp_id),
+            get_order_status(client, symbol, sl_id),
+            return_exceptions=True,
+        )
+        if is_filled(tp_status):
+            await cancel_order(client, symbol, sl_id)
+            return "TP"
+        if is_filled(sl_status):
+            await cancel_order(client, symbol, tp_id)
+            return "SL"
+        await asyncio.sleep(delay)
+        delay = min(delay * 1.2, 2.0)
+
+Critical notes to remember
+Pitfall	Rule
+STOP_MARKET goes to Conditional/Algo bucket	Use algoId from response, not orderId
+futures_get_order returns -2013 for algo orders	Fall back to algo/futures/openOrders endpoint
+futures_cancel_order fails on algo orders	Fall back to DELETE algo/futures/order
+python-binance overrides your newClientOrderId	Use algoId for tracking, not your cid
+Retrying SL placement creates N duplicate SLs	Place once, trust the response, only retry on exceptions
+TP = regular LIMIT → normal endpoints	SL = STOP_MARKET → algo endpoints

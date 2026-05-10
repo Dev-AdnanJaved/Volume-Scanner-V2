@@ -23,6 +23,7 @@ from notifier import TelegramNotifier
 from scanner import Scanner
 from tracker import SignalTracker
 from bot_commands import TelegramCommandListener
+from trader import AutoTrader
 
 
 def load_config(path: str = "config.json") -> dict:
@@ -160,12 +161,17 @@ def main() -> None:
     else:
         logger.info("Tracker disabled")
 
+    # auto-trader (optional)
+    trader = AutoTrader(config, notifier)
+    trader.start()
+
     # scanner (main thread)
-    scanner = Scanner(config, binance, notifier, tracker, market_cap)
+    scanner = Scanner(config, binance, notifier, tracker, market_cap, trader=trader)
 
     def _shutdown(sig, _frame):
         logger.info("Received signal %s — shutting down …", sig)
         scanner.stop()
+        trader.stop()
         if tracker:
             tracker.stop()
         if cmd_listener:
