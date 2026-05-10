@@ -931,7 +931,7 @@ class TelegramCommandListener:
     def _cmd_monster(self, chat_id: str) -> None:
         min_score = self._monster_report_min_score
         candidate_threshold = self._monster_candidate_threshold
-        self._send(chat_id, f"⏳ Loading monster signals (score ≥ {min_score}/10)…")
+        self._send(chat_id, f"⏳ Loading monster signals (score ≥ {min_score}/9)…")
 
         try:
             prices = self._binance.get_mark_prices()
@@ -948,7 +948,7 @@ class TelegramCommandListener:
         all_monsters = active_monsters + history_monsters
 
         if not all_monsters:
-            self._send(chat_id, f"🔥 No monster signals found with score ≥ {min_score}/10.")
+            self._send(chat_id, f"🔥 No monster signals found with score ≥ {min_score}/9.")
             return
 
         total = len(all_monsters)
