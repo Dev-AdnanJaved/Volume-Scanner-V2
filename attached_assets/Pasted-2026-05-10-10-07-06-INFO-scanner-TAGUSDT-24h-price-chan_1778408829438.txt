@@ -1,0 +1,29 @@
+2026-05-10 10:07:06 [INFO] scanner: TAGUSDT  ✅ 24h price change: 8.8%                               10:07:08 [934/1830]
+2026-05-10 10:07:07 [INFO] tracker: Tracker: recorded TAGUSDT @ $0.00148470
+2026-05-10 10:07:07 [INFO] scanner: 🚨 SIGNAL  TAGUSDT  brk:+4.70%  vols:$196K→$400K→$2.04M  24h:8.8%  flags:0  score:7/
+8
+2026-05-10 10:07:07 [INFO] trader: AutoTrader: queued TAGUSDT for entry
+2026-05-10 10:07:08 [INFO] scanner: Scanning [271/359] ESPORTSUSDT
+2026-05-10 10:07:08 [INFO] trader: AutoTrader: TAGUSDT leverage = 20x
+2026-05-10 10:07:08 [INFO] trader: AutoTrader: TAGUSDT using leverage=20x margin=5.00%
+2026-05-10 10:07:08 [INFO] scanner: ESPORTSUSDT  ✅ Breakout +1.14% above 24h high 0.36960000
+2026-05-10 10:07:08 [INFO] scanner: ESPORTSUSDT  rejected — volume NOT consecutively increasing: $59K → $46K → $139K
+2026-05-10 10:07:08 [INFO] scanner: Scanning [272/359] TREEUSDT
+2026-05-10 10:07:08 [ERROR] trader: AutoTrader: failed to open trade for TAGUSDT
+Traceback (most recent call last):
+  File "/home/ubuntu/Volume-Scanner-V2/trader.py", line 464, in _open_trade
+    entry_res = await client.futures_create_order(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Volume-Scanner-V2/venv/lib/python3.12/site-packages/binance/async_client.py", line 2205, in futures
+_create_order
+    return await self._request_futures_api("post", "order", True, data=params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Volume-Scanner-V2/venv/lib/python3.12/site-packages/binance/async_client.py", line 237, in _request
+_futures_api
+    return await self._request(method, uri, signed, force_params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Volume-Scanner-V2/venv/lib/python3.12/site-packages/binance/async_client.py", line 199, in _request
+    return await self._handle_response(response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Volume-Scanner-V2/venv/lib/python3.12/site-packages/binance/async_client.py", line 207, in _handle_
+response

@@ -313,6 +313,22 @@ class AutoTrader:
         self._queue = asyncio.Queue()
         client = await AsyncClient.create(self._api_key, self._api_secret)
         logger.info("AutoTrader: Binance AsyncClient connected")
+
+        # Auto-detect account position mode — overrides any config value
+        try:
+            mode_info = await client.futures_get_position_mode()
+            self._hedge_mode = bool(mode_info.get("dualSidePosition", False))
+            logger.info(
+                "AutoTrader: position mode = %s",
+                "Hedge (dualSidePosition)" if self._hedge_mode else "One-way",
+            )
+        except Exception as e:
+            logger.warning(
+                "AutoTrader: could not detect position mode — using config value "
+                "(hedge_mode=%s): %s",
+                self._hedge_mode, e,
+            )
+
         try:
             while self._running:
                 try:
