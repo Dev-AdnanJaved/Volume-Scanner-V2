@@ -1,0 +1,42 @@
+What's implemented correctly ✅
+
+Monster score (0–7) using only entry-time fields — no outcome fields
+candidate_threshold = 6 gates only high-confidence trades
+SL at −10%, TP1 at +50%, TP2 at +100%
+Breakeven SL after TP1 hits — smart risk management
+TP5 and TP10 snapshot checks with the right HOLD/EXIT conditions
+External close guard (liquidation, manual close) — good defensive addition
+Parallel order status checking in the watch loop
+
+
+Issues found ⚠️
+1. Score tiers only define tier 6, but the strategy has tiers 3, 4–5, and 6–7.
+json"score_tiers": {
+  "6": { "tp1_pct": 50, "tp2_pct": 100, "margin_multiplier": 1.0 }
+}
+Since candidate_threshold = 6, scores 3–5 never reach the trader at all. That's a design choice, but it means you're throwing away valid signals. The strategy says score 4–5 = full size targeting TP20–30, and score 3 = half size exit at TP10. You're leaving those on the table entirely.
+Fix: Either lower candidate_threshold to 3 and add the missing tiers, or document that you're intentionally running max-score-only mode.
+
+2. TP10 snapshot EXIT_AT_TP25 — but TP2 is at +100%, not +25%
+The watch loop says:
+
+If EXIT_AT_TP25 and current TP2 > +25%: cancels TP2, places new TP2 at +25%
+
+This is correct per the strategy ("exit at TP20–30"). But your config has tp2_pct: 100 as the default. So the snapshot correctly downgrades the target when momentum fades. That's fine — just make sure the snapshot check fires reliably before TP2 fills naturally at +100%, which leads to issue #3.
+
+3. Snapshot checks fire only once — but what if price gaps past +5% or +10%?
+The description says snapshots fire "once per trade, when mark price crosses +5% / +10%." If the price moves fast (hits TP5 area in <1 watch interval, e.g. 30s), the snapshot might fire after the price has already blown through +10%, meaning the TP5 check runs but the signal may already be invalid or TP10 check gets skipped.
+Fix: Verify the snapshot background task uses the entry-relative price level, not the current mark price at time of check. If the coin jumped from +3% to +12% in one interval, both the TP5 and TP10 snapshots should still fire with the correct snapshot data at that moment.
+
+4. TP5 snapshot EXIT condition moves TP1 to +10% — but TP1 is currently at +50%
+The flow says:
+
+If EXIT_AT_TP10 and current TP1 > +10%: cancels TP1, places new TP1 at +10%
+
+This is correct. But note that after this adjustment, the TP2 at +100% is still live. If the coin stalls at +10% and then reverses, the breakeven SL only kicks in after TP1 fills at +10% — which is a much smaller gain. This is intentional per the strategy, but worth being aware of.
+
+5. The high_breakout_warning +2 points — verify the field name matches
+The score table in the codebase shows "High breakout warning" as a condition, but make sure the field being evaluated is exactly high_breakout_warning = true (boolean check), not a string or numeric threshold. A common bug is the field being "true" (string) vs True (boolean), which silently scores 0.
+
+Summary table
+IssueSeverityFix needed?Score tiers 3–5 unreachableMediumIntentional or add tiersTP10 snapshot fires after price gapsMediumVerify snapshot uses entry-relative levelshigh_breakout_warning type checkLowVerify boolean vs stringTP2 still at +100% after TP1 downgradedLowAwareness only, by design

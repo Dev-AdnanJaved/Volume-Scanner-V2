@@ -46,9 +46,26 @@
     "candidate_threshold": 6,
     "report_min_score": 3,
     "score_tiers": {
-      "6": {"label": "max_size",  "margin_multiplier": 1.0,  "tp1_pct": 50.0, "tp2_pct": 100.0},
-      "4": {"label": "full_size", "margin_multiplier": 0.75, "tp1_pct": 20.0, "tp2_pct": 30.0},
-      "3": {"label": "half_size", "margin_multiplier": 0.5,  "tp1_pct": 10.0, "tp2_pct": 10.0}
+      "6": {
+        "label": "max_size", "margin_multiplier": 1.0,
+        "take_profits": [
+          {"pct": 50.0,  "qty_pct": 50.0, "move_sl_to_breakeven": true},
+          {"pct": 100.0, "qty_pct": 50.0, "move_sl_to_breakeven": false}
+        ]
+      },
+      "4": {
+        "label": "full_size", "margin_multiplier": 0.75,
+        "take_profits": [
+          {"pct": 20.0, "qty_pct": 50.0, "move_sl_to_breakeven": true},
+          {"pct": 30.0, "qty_pct": 50.0, "move_sl_to_breakeven": false}
+        ]
+      },
+      "3": {
+        "label": "half_size", "margin_multiplier": 0.5,
+        "take_profits": [
+          {"pct": 10.0, "qty_pct": 100.0, "move_sl_to_breakeven": false}
+        ]
+      }
     },
     "tp5_hold_hours_max": 20,
     "tp5_ema_dist_min": 15.0,
@@ -77,9 +94,7 @@
     },
     "margin_pct": 2.0,
     "sl_pct": 10.0,
-    "tp1_qty_pct": 50.0,
-    "tp2_qty_pct": 50.0,
-    "move_sl_to_breakeven_after_tp1": true,
+    "move_sl_to_breakeven_after_tp": true,
     "hedge_mode": false,
     "watch_interval_seconds": 30,
     "max_open_trades": 5

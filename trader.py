@@ -261,9 +261,7 @@ class AutoTrader:
         }
         self._margin_pct: float     = at.get("margin_pct", 2.0)
         self._sl_pct: float         = at.get("sl_pct", 10.0)
-        self._tp1_qty_pct: float    = at.get("tp1_qty_pct", 50.0)
-        self._tp2_qty_pct: float    = at.get("tp2_qty_pct", 50.0)
-        self._move_sl_to_be: bool   = at.get("move_sl_to_breakeven_after_tp1", True)
+        self._move_sl_to_be: bool   = at.get("move_sl_to_breakeven_after_tp", True)
         self._hedge_mode: bool      = at.get("hedge_mode", False)
         self._watch_interval: int   = at.get("watch_interval_seconds", 30)
         self._max_open: int         = at.get("max_open_trades", 5)
@@ -580,22 +578,26 @@ class AutoTrader:
             )
 
             if decision == "EXIT_AT_TP10":
-                current_tp1_pct = trade.get("tp1_pct", 50.0)
-                if current_tp1_pct > 10.0:
-                    price_tick = trade.get("price_tick", 0.0001)
-                    price_prec = trade.get("price_prec", 4)
-                    new_tp1_price = _round_price(trade["entry"] * 1.10, price_tick, price_prec)
-                    await _cancel_order(client, symbol, trade.get("tp1_id"))
-                    new_tp1_id = await _place_tp(
-                        client, symbol, trade["qty1"], new_tp1_price, self._hedge_mode
-                    )
-                    self._open_trades[symbol]["tp1_id"]    = new_tp1_id
-                    self._open_trades[symbol]["tp1_price"] = new_tp1_price
-                    self._open_trades[symbol]["tp1_pct"]   = 10.0
-                    logger.info(
-                        "AutoTrader: %s TP1 adjusted to +10%% @ %.4f (was +%.0f%%)",
-                        symbol, new_tp1_price, current_tp1_pct,
-                    )
+                tr2       = self._open_trades.get(symbol, {})
+                tps_now   = tr2.get("tps", [])
+                p_tick    = tr2.get("price_tick", 0.0001)
+                p_prec    = tr2.get("price_prec", 4)
+                for i, tp in enumerate(tps_now):
+                    if not tp.get("filled", False) and tp.get("pct", 0) > 10.0:
+                        new_price = _round_price(tr2["entry"] * 1.10, p_tick, p_prec)
+                        old_pct   = tp["pct"]
+                        await _cancel_order(client, symbol, tp.get("order_id"))
+                        new_id = await _place_tp(
+                            client, symbol, tp["qty"], new_price, self._hedge_mode
+                        )
+                        self._open_trades[symbol]["tps"][i]["order_id"] = new_id
+                        self._open_trades[symbol]["tps"][i]["price"]    = new_price
+                        self._open_trades[symbol]["tps"][i]["pct"]      = 10.0
+                        logger.info(
+                            "AutoTrader: %s TP%d adjusted to +10%% @ %.4f (was +%.0f%%)",
+                            symbol, i + 1, new_price, old_pct,
+                        )
+                        break
 
         elif level == 10:
             hold_all = (
@@ -642,22 +644,26 @@ class AutoTrader:
             )
 
             if decision == "EXIT_AT_TP25":
-                current_tp2_pct = trade.get("tp2_pct", 100.0)
-                if current_tp2_pct > 25.0:
-                    price_tick = trade.get("price_tick", 0.0001)
-                    price_prec = trade.get("price_prec", 4)
-                    new_tp2_price = _round_price(trade["entry"] * 1.25, price_tick, price_prec)
-                    await _cancel_order(client, symbol, trade.get("tp2_id"))
-                    new_tp2_id = await _place_tp(
-                        client, symbol, trade["qty2"], new_tp2_price, self._hedge_mode
-                    )
-                    self._open_trades[symbol]["tp2_id"]    = new_tp2_id
-                    self._open_trades[symbol]["tp2_price"] = new_tp2_price
-                    self._open_trades[symbol]["tp2_pct"]   = 25.0
-                    logger.info(
-                        "AutoTrader: %s TP2 adjusted to +25%% @ %.4f (was +%.0f%%)",
-                        symbol, new_tp2_price, current_tp2_pct,
-                    )
+                tr2       = self._open_trades.get(symbol, {})
+                tps_now   = tr2.get("tps", [])
+                p_tick    = tr2.get("price_tick", 0.0001)
+                p_prec    = tr2.get("price_prec", 4)
+                for i, tp in enumerate(tps_now):
+                    if not tp.get("filled", False) and tp.get("pct", 0) > 25.0:
+                        new_price = _round_price(tr2["entry"] * 1.25, p_tick, p_prec)
+                        old_pct   = tp["pct"]
+                        await _cancel_order(client, symbol, tp.get("order_id"))
+                        new_id = await _place_tp(
+                            client, symbol, tp["qty"], new_price, self._hedge_mode
+                        )
+                        self._open_trades[symbol]["tps"][i]["order_id"] = new_id
+                        self._open_trades[symbol]["tps"][i]["price"]    = new_price
+                        self._open_trades[symbol]["tps"][i]["pct"]      = 25.0
+                        logger.info(
+                            "AutoTrader: %s TP%d adjusted to +25%% @ %.4f (was +%.0f%%)",
+                            symbol, i + 1, new_price, old_pct,
+                        )
+                        break
 
     # ── Open trade ────────────────────────────────────────────────────
 
@@ -667,20 +673,25 @@ class AutoTrader:
         self._open_trades[symbol] = {"status": "opening"}
 
         try:
-            # Determine tier from monster score
+            # Tier lookup
             tier = self._get_tier(monster_score)
             if tier is None:
-                logger.info(
-                    "AutoTrader: %s score=%d below all tiers — skipping",
-                    symbol, monster_score,
-                )
+                logger.info("AutoTrader: %s score=%d below all tiers — skipping",
+                            symbol, monster_score)
                 self._open_trades.pop(symbol, None)
                 return
 
             tier_label        = tier.get("label", "unknown")
             margin_multiplier = float(tier.get("margin_multiplier", 1.0))
-            tp1_pct           = float(tier.get("tp1_pct", 50.0))
-            tp2_pct           = float(tier.get("tp2_pct", 100.0))
+            tps_cfg = tier.get("take_profits", [
+                {"pct": 50.0,  "qty_pct": 50.0,  "move_sl_to_breakeven": True},
+                {"pct": 100.0, "qty_pct": 50.0,  "move_sl_to_breakeven": False},
+            ])
+            if not tps_cfg:
+                logger.error("AutoTrader: %s tier %s has no take_profits — skipping",
+                             symbol, tier_label)
+                self._open_trades.pop(symbol, None)
+                return
 
             sym_info   = await self._get_sym_info(client, symbol)
             qty_step   = sym_info["qty_step"]
@@ -696,28 +707,20 @@ class AutoTrader:
                     logger.info("AutoTrader: %s leverage = %dx", symbol, lev)
                     break
                 except Exception as e:
-                    logger.warning(
-                        "AutoTrader: %s leverage %dx rejected — trying next: %s",
-                        symbol, lev, e,
-                    )
+                    logger.warning("AutoTrader: %s leverage %dx rejected — trying next: %s",
+                                   symbol, lev, e)
 
             if actual_leverage is None:
                 logger.error("AutoTrader: %s — all leverage steps failed, aborting", symbol)
-                await self._notify(
-                    f"❌ <b>AutoTrader skipped</b> {symbol}\n"
-                    f"Could not set any leverage from {self._leverage_steps}"
-                )
+                await self._notify(f"❌ <b>AutoTrader skipped</b> {symbol}\n"
+                                   f"Could not set any leverage from {self._leverage_steps}")
                 self._open_trades.pop(symbol, None)
                 return
 
-            # Margin = base from leverage map × tier multiplier
             base_margin   = self._leverage_margin_map.get(actual_leverage, self._margin_pct)
             actual_margin = base_margin * margin_multiplier
-            logger.info(
-                "AutoTrader: %s tier=%s  score=%d  leverage=%dx  margin=%.2f%% (%.2f×%.2f)",
-                symbol, tier_label, monster_score, actual_leverage,
-                actual_margin, base_margin, margin_multiplier,
-            )
+            logger.info("AutoTrader: %s tier=%s  score=%d  leverage=%dx  margin=%.2f%%",
+                        symbol, tier_label, monster_score, actual_leverage, actual_margin)
 
             # Balance
             balance_info = await client.futures_account_balance()
@@ -730,10 +733,8 @@ class AutoTrader:
             if usdt_balance < 10:
                 logger.warning("AutoTrader: insufficient USDT (%.2f) — skipping %s",
                                usdt_balance, symbol)
-                await self._notify(
-                    f"⚠️ <b>AutoTrader skipped</b> {symbol}\n"
-                    f"Insufficient USDT balance: ${usdt_balance:.2f}"
-                )
+                await self._notify(f"⚠️ <b>AutoTrader skipped</b> {symbol}\n"
+                                   f"Insufficient USDT balance: ${usdt_balance:.2f}")
                 self._open_trades.pop(symbol, None)
                 return
 
@@ -745,25 +746,35 @@ class AutoTrader:
                 self._open_trades.pop(symbol, None)
                 return
 
-            # Quantities
             notional  = usdt_balance * (actual_margin / 100.0)
             raw_total = notional * actual_leverage / entry_price
-            qty1      = _round_step(raw_total * (self._tp1_qty_pct / 100.0), qty_step)
-            qty2      = _round_step(raw_total * (self._tp2_qty_pct / 100.0), qty_step)
-            entry_qty = qty1 + qty2
-
-            if qty1 <= 0 or qty2 <= 0:
-                logger.error("AutoTrader: %s qty too small (%.6f / %.6f) — aborting",
-                             symbol, qty1, qty2)
-                self._open_trades.pop(symbol, None)
-                return
 
             def rp(price: float) -> float:
                 return _round_price(price, price_tick, price_prec)
 
-            sl_price  = rp(entry_price * (1 - self._sl_pct / 100.0))
-            tp1_price = rp(entry_price * (1 + tp1_pct       / 100.0))
-            tp2_price = rp(entry_price * (1 + tp2_pct       / 100.0))
+            sl_price = rp(entry_price * (1 - self._sl_pct / 100.0))
+
+            # Build TP list from config
+            tps: list[dict] = []
+            for tp_cfg in tps_cfg:
+                qty = _round_step(raw_total * (float(tp_cfg["qty_pct"]) / 100.0), qty_step)
+                tps.append({
+                    "pct":                float(tp_cfg["pct"]),
+                    "qty_pct":            float(tp_cfg["qty_pct"]),
+                    "qty":                qty,
+                    "price":              rp(entry_price * (1 + float(tp_cfg["pct"]) / 100.0)),
+                    "move_sl_to_breakeven": bool(tp_cfg.get("move_sl_to_breakeven", False)),
+                    "order_id":           None,
+                    "filled":             False,
+                })
+
+            if any(tp["qty"] <= 0 for tp in tps):
+                logger.error("AutoTrader: %s qty too small for one or more TPs — aborting",
+                             symbol)
+                self._open_trades.pop(symbol, None)
+                return
+
+            entry_qty = sum(tp["qty"] for tp in tps)
 
             # Market LONG entry
             kw_entry  = {"positionSide": "LONG"} if self._hedge_mode else {}
@@ -774,34 +785,30 @@ class AutoTrader:
             actual_entry = float(entry_res.get("avgPrice") or entry_res.get("price") or 0)
             if actual_entry > 0:
                 entry_price = actual_entry
-                sl_price  = rp(entry_price * (1 - self._sl_pct / 100.0))
-                tp1_price = rp(entry_price * (1 + tp1_pct       / 100.0))
-                tp2_price = rp(entry_price * (1 + tp2_pct       / 100.0))
+                sl_price    = rp(entry_price * (1 - self._sl_pct / 100.0))
+                for tp in tps:
+                    tp["price"] = rp(entry_price * (1 + tp["pct"] / 100.0))
 
             logger.info("AutoTrader: %s MARKET LONG filled  qty=%.6f  @~%.4f",
                         symbol, entry_qty, entry_price)
 
-            # Place TP1, TP2, SL simultaneously
-            tp1_id, tp2_id, sl_id = await asyncio.gather(
-                _place_tp(client, symbol, qty1, tp1_price, self._hedge_mode),
-                _place_tp(client, symbol, qty2, tp2_price, self._hedge_mode),
+            # Place all TPs + SL in one parallel gather
+            results = await asyncio.gather(
+                *[_place_tp(client, symbol, tp["qty"], tp["price"], self._hedge_mode)
+                  for tp in tps],
                 _place_sl(client, symbol, entry_qty, sl_price, self._hedge_mode),
             )
+            for i, tp in enumerate(tps):
+                tp["order_id"] = results[i]
+            sl_id = results[-1]
 
             self._open_trades[symbol] = {
                 "status":        "open",
                 "entry":         entry_price,
                 "qty_total":     entry_qty,
-                "qty1":          qty1,
-                "qty2":          qty2,
                 "sl_price":      sl_price,
-                "tp1_price":     tp1_price,
-                "tp2_price":     tp2_price,
-                "tp1_pct":       tp1_pct,
-                "tp2_pct":       tp2_pct,
-                "tp1_id":        tp1_id,
-                "tp2_id":        tp2_id,
                 "sl_id":         sl_id,
+                "tps":           tps,
                 "monster_score": monster_score,
                 "tier_label":    tier_label,
                 "opened_at":     time.time(),
@@ -813,20 +820,26 @@ class AutoTrader:
                 "signal":        signal,
             }
 
+            tp_lines = "\n".join(
+                f"🎯 TP{i+1}:    ${tp['price']:.4f}"
+                f"  (+{tp['pct']:.0f}% · {tp['qty_pct']:.0f}% pos)"
+                f"  [BE-SL={'✓' if tp['move_sl_to_breakeven'] else '✗'}]"
+                for i, tp in enumerate(tps)
+            )
+            tp_ids = "  ".join(f"TP{i+1}={tp['order_id']}" for i, tp in enumerate(tps))
             await self._notify(
                 f"🤖 <b>AUTO TRADE OPENED</b>\n"
                 f"{'━' * 26}\n"
                 f"📌 <b>{symbol}</b>   🔥 {monster_score}/7  [{tier_label}]\n"
                 f"\n"
-                f"💰 Entry:    ${entry_price:.4f}\n"
-                f"📊 Qty:      {entry_qty}  ({actual_leverage}x leverage)\n"
-                f"💵 Margin:   ${notional:.2f}  ({actual_margin:.2f}% of balance)\n"
+                f"💰 Entry:   ${entry_price:.4f}\n"
+                f"📊 Qty:     {entry_qty}  ({actual_leverage}x leverage)\n"
+                f"💵 Margin:  ${notional:.2f}  ({actual_margin:.2f}%)\n"
                 f"\n"
-                f"🎯 TP1:     ${tp1_price:.4f}  (+{tp1_pct}% · {self._tp1_qty_pct:.0f}% pos)\n"
-                f"🎯 TP2:     ${tp2_price:.4f}  (+{tp2_pct}% · {self._tp2_qty_pct:.0f}% pos)\n"
-                f"🛑 SL:      ${sl_price:.4f}  (-{self._sl_pct}%)\n"
+                f"{tp_lines}\n"
+                f"🛑 SL:     ${sl_price:.4f}  (-{self._sl_pct}%)\n"
                 f"\n"
-                f"📋 TP1={tp1_id}  TP2={tp2_id}  SL={sl_id}"
+                f"📋 {tp_ids}  SL={sl_id}"
             )
 
             asyncio.create_task(self._watch_trade(client, symbol))
@@ -843,7 +856,7 @@ class AutoTrader:
 
     async def _watch_trade(self, client: AsyncClient, symbol: str) -> None:
         logger.info("AutoTrader: watching %s", symbol)
-        tp1_hit      = False
+        tp_index     = 0
         tp5_checked  = False
         tp10_checked = False
 
@@ -851,152 +864,165 @@ class AutoTrader:
             trade = self._open_trades.get(symbol)
             if not trade or trade.get("status") != "open":
                 self._open_trades.pop(symbol, None)
-                logger.warning(
-                    "AutoTrader: %s watch loop exiting — unexpected status, slot freed",
-                    symbol,
-                )
+                logger.warning("AutoTrader: %s unexpected status — slot freed", symbol)
                 break
 
+            tps = trade.get("tps", [])
+            if tp_index >= len(tps):
+                self._open_trades.pop(symbol, None)
+                logger.info("AutoTrader: %s all TPs consumed — slot freed", symbol)
+                break
+
+            current_tp = tps[tp_index]
+            total_qty  = sum(t["qty"] for t in tps)
+
             try:
-                # ── External-closure guard (position size = 0) ────────────
+                # ── External-closure guard ────────────────────────────────
                 pos_size = await _get_position_size(client, symbol, self._hedge_mode)
                 if pos_size is not None and pos_size == 0:
                     await asyncio.gather(
-                        _cancel_order(client, symbol, trade.get("tp1_id")),
-                        _cancel_order(client, symbol, trade.get("tp2_id")),
+                        *[_cancel_order(client, symbol, t.get("order_id"))
+                          for t in tps[tp_index:]],
                         _cancel_order(client, symbol, trade.get("sl_id")),
                         return_exceptions=True,
                     )
                     await self._notify(
                         f"🔴 <b>EXTERNAL CLOSE</b> — {symbol}\n"
-                        f"Position was closed externally (size = 0).\n"
+                        f"Position closed externally (size = 0).\n"
                         f"All pending orders cancelled. Trade slot freed."
                     )
                     self._open_trades.pop(symbol, None)
-                    logger.info(
-                        "AutoTrader: %s externally closed — slot freed", symbol
-                    )
+                    logger.info("AutoTrader: %s externally closed — slot freed", symbol)
                     return
 
-                # ── TP snapshot price checks (before order status checks) ─
+                # ── TP snapshot price checks (+5% / +10% from entry) ──────
                 if not (tp5_checked and tp10_checked):
                     try:
                         mk = await client.futures_mark_price(symbol=symbol)
-                        current_price = float(mk.get("markPrice", 0))
+                        cur_price = float(mk.get("markPrice", 0))
                     except Exception:
-                        current_price = 0.0
+                        cur_price = 0.0
 
-                    if current_price > 0:
+                    if cur_price > 0:
                         entry = trade["entry"]
-                        if not tp5_checked and current_price >= entry * 1.05:
+                        if not tp5_checked and cur_price >= entry * 1.05:
                             tp5_checked = True
                             asyncio.create_task(
                                 self._check_tp_snapshot(client, symbol, 5)
                             )
-                        if not tp10_checked and current_price >= entry * 1.10:
+                        if not tp10_checked and cur_price >= entry * 1.10:
                             tp10_checked = True
                             asyncio.create_task(
                                 self._check_tp_snapshot(client, symbol, 10)
                             )
 
-                tp1_id = trade.get("tp1_id")
-                tp2_id = trade.get("tp2_id")
-                sl_id  = trade.get("sl_id")
+                # ── Poll current TP and SL status in parallel ─────────────
+                tp_status, sl_status = await asyncio.gather(
+                    _get_order_status(client, symbol, current_tp.get("order_id")),
+                    _get_order_status(client, symbol, trade.get("sl_id")),
+                    return_exceptions=True,
+                )
 
-                if not tp1_hit:
-                    # ── Phase 1: waiting for TP1 or SL ───────────────────
-                    tp1_status, sl_status = await asyncio.gather(
-                        _get_order_status(client, symbol, tp1_id),
-                        _get_order_status(client, symbol, sl_id),
+                # ── SL filled ─────────────────────────────────────────────
+                if _is_filled(sl_status):
+                    await asyncio.gather(
+                        *[_cancel_order(client, symbol, t.get("order_id"))
+                          for t in tps[tp_index:]],
                         return_exceptions=True,
                     )
+                    trade_lev     = trade.get("leverage", self._leverage)
+                    sl_pct_actual = (trade["sl_price"] - trade["entry"]) / trade["entry"] * 100
+                    lev_result    = sl_pct_actual * trade_lev
 
-                    if _is_filled(sl_status):
-                        await asyncio.gather(
-                            _cancel_order(client, symbol, tp1_id),
-                            _cancel_order(client, symbol, tp2_id),
-                            return_exceptions=True,
-                        )
-                        trade_lev = trade.get("leverage", self._leverage)
-                        lev_loss  = -self._sl_pct * trade_lev
-                        await self._notify(
+                    if tp_index == 0:
+                        msg = (
                             f"🛑 <b>SL HIT</b> — {symbol}\n"
                             f"Entry ${trade['entry']:.4f} → SL ${trade['sl_price']:.4f}\n"
-                            f"Loss: -{self._sl_pct}%  (×{trade_lev} = {lev_loss:.1f}%)"
+                            f"Loss: {sl_pct_actual:.1f}%  (×{trade_lev} = {lev_result:.1f}%)"
                         )
-                        self._open_trades.pop(symbol, None)
-                        return
-
-                    if _is_filled(tp1_status):
-                        tp1_hit = True
-                        await _cancel_order(client, symbol, sl_id)
-
-                        price_tick = trade.get("price_tick", 0.0001)
-                        price_prec = trade.get("price_prec", 4)
-                        be_price   = _round_price(trade["entry"], price_tick, price_prec)
-
-                        new_sl_id = None
-                        if self._move_sl_to_be:
-                            new_sl_id = await _place_sl(
-                                client, symbol, trade["qty2"], be_price, self._hedge_mode
-                            )
-                            self._open_trades[symbol]["sl_id"]   = new_sl_id
-                            self._open_trades[symbol]["sl_price"] = be_price
-
-                        trade_lev = trade.get("leverage", self._leverage)
-                        tp1_pct   = trade.get("tp1_pct", 50.0)
-                        lev_tp1   = tp1_pct * trade_lev
+                    else:
+                        locked_pnl = sum(
+                            t["pct"] * (t["qty"] / total_qty)
+                            for t in tps[:tp_index]
+                        )
+                        be_close = abs(trade["sl_price"] - trade["entry"]) / trade["entry"] < 0.002
+                        sl_label = "BREAKEVEN SL" if be_close else "SL"
                         msg = (
-                            f"✅ <b>TP1 HIT</b> — {symbol}\n"
-                            f"Closed {self._tp1_qty_pct:.0f}% @ ${trade['tp1_price']:.4f}  "
-                            f"(+{tp1_pct}% · ×{trade_lev} = +{lev_tp1:.1f}%)\n"
+                            f"🔄 <b>{sl_label} HIT</b> — {symbol}\n"
+                            f"{'━' * 26}\n"
+                            f"{tp_index} TP(s) previously filled ✅\n"
+                            f"Locked P&L: +{locked_pnl:.2f}% (position-weighted)\n"
+                            f"Remaining qty closed at ${trade['sl_price']:.4f}"
                         )
-                        if self._move_sl_to_be:
-                            msg += f"🔄 SL moved to breakeven (${be_price:.4f})\n"
-                        tp2_pct = trade.get("tp2_pct", 100.0)
-                        msg += (
-                            f"🎯 Holding {self._tp2_qty_pct:.0f}% "
-                            f"for TP2 @ ${trade['tp2_price']:.4f}  (+{tp2_pct}%)"
-                        )
-                        await self._notify(msg)
 
-                else:
-                    # ── Phase 2: TP1 done, watching TP2 or breakeven SL ──
-                    sl_id = self._open_trades[symbol].get("sl_id")
-                    tp2_status, sl_status = await asyncio.gather(
-                        _get_order_status(client, symbol, tp2_id),
-                        _get_order_status(client, symbol, sl_id),
-                        return_exceptions=True,
+                    await self._notify(msg)
+                    self._open_trades.pop(symbol, None)
+                    return
+
+                # ── Current TP filled ──────────────────────────────────────
+                if _is_filled(tp_status):
+                    tps[tp_index]["filled"] = True
+                    tp_pct    = current_tp["pct"]
+                    trade_lev = trade.get("leverage", self._leverage)
+                    lev_gain  = tp_pct * trade_lev
+                    qty_frac  = current_tp["qty"] / total_qty * 100
+                    tp_num    = tp_index + 1
+                    tp_index += 1
+
+                    if tp_index >= len(tps):
+                        # ── All TPs filled — full exit ────────────────────
+                        await _cancel_order(client, symbol, trade.get("sl_id"))
+
+                        summary = "\n".join(
+                            f"TP{i+1}: +{t['pct']:.0f}%  on {t['qty']/total_qty*100:.0f}%  ✅"
+                            for i, t in enumerate(tps)
+                        )
+                        duration_h = (time.time() - trade["opened_at"]) / 3600
+                        await self._notify(
+                            f"🚀 <b>FULL EXIT</b> — {symbol}\n"
+                            f"{'━' * 26}\n"
+                            f"{summary}\n\n"
+                            f"🔥 Monster {trade['monster_score']}/7"
+                            f"  [{trade.get('tier_label', '')}]\n"
+                            f"⏱ Duration: {duration_h:.1f}h"
+                        )
+                        self._open_trades.pop(symbol, None)
+                        return
+
+                    # ── Partial TP filled — more TPs remain ───────────────
+                    next_tp = tps[tp_index]
+
+                    # Move SL to breakeven if configured for this TP
+                    sl_moved  = False
+                    be_price  = None
+                    if current_tp.get("move_sl_to_breakeven", False) or self._move_sl_to_be:
+                        remaining_qty = sum(t["qty"] for t in tps[tp_index:])
+                        price_tick    = trade.get("price_tick", 0.0001)
+                        price_prec    = trade.get("price_prec", 4)
+                        be_price      = _round_price(trade["entry"], price_tick, price_prec)
+                        await _cancel_order(client, symbol, trade.get("sl_id"))
+                        new_sl_id = await _place_sl(
+                            client, symbol, remaining_qty, be_price, self._hedge_mode
+                        )
+                        self._open_trades[symbol]["sl_id"]   = new_sl_id
+                        self._open_trades[symbol]["sl_price"] = be_price
+                        sl_moved = True
+
+                    msg = (
+                        f"✅ <b>TP{tp_num} HIT</b> — {symbol}\n"
+                        f"{'━' * 26}\n"
+                        f"Closed {qty_frac:.0f}% @ ${current_tp['price']:.4f}"
+                        f"  (+{tp_pct:.0f}% · ×{trade_lev} = +{lev_gain:.1f}%)\n"
                     )
-
-                    if _is_filled(sl_status):
-                        await _cancel_order(client, symbol, tp2_id)
-                        tp1_pct = trade.get("tp1_pct", 50.0)
-                        locked  = tp1_pct * (self._tp1_qty_pct / 100.0)
-                        await self._notify(
-                            f"🔄 <b>BREAKEVEN SL HIT</b> — {symbol}\n"
-                            f"TP1 profit locked ✅  Remaining half closed at entry price.\n"
-                            f"Net result: +{locked:.2f}% on full position"
-                        )
-                        self._open_trades.pop(symbol, None)
-                        return
-
-                    if _is_filled(tp2_status):
-                        await _cancel_order(client, symbol, sl_id)
-                        trade_lev = trade.get("leverage", self._leverage)
-                        tp1_pct   = trade.get("tp1_pct", 50.0)
-                        tp2_pct   = trade.get("tp2_pct", 100.0)
-                        lev_tp2   = tp2_pct * trade_lev
-                        await self._notify(
-                            f"🚀 <b>TP2 HIT — FULL EXIT</b> — {symbol}\n"
-                            f"TP1: +{tp1_pct}% on {self._tp1_qty_pct:.0f}%  ✅\n"
-                            f"TP2: +{tp2_pct}%  "
-                            f"(×{trade_lev} = +{lev_tp2:.1f}%)  🚀\n"
-                            f"🔥 Monster score: {trade['monster_score']}/7  "
-                            f"[{trade.get('tier_label', '')}]"
-                        )
-                        self._open_trades.pop(symbol, None)
-                        return
+                    if sl_moved and be_price is not None:
+                        msg += f"🔄 SL → breakeven (${be_price:.4f})\n"
+                    remaining_tps = len(tps) - tp_index
+                    msg += (
+                        f"🎯 Next: TP{tp_index+1} @ ${next_tp['price']:.4f}"
+                        f"  (+{next_tp['pct']:.0f}%)"
+                        f"  [{remaining_tps} TP(s) remaining]"
+                    )
+                    await self._notify(msg)
 
             except Exception:
                 logger.error("AutoTrader: watch error for %s", symbol, exc_info=True)
