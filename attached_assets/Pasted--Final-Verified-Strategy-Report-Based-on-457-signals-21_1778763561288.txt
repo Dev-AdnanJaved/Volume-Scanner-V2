@@ -1,0 +1,227 @@
+# Final Verified Strategy Report
+**Based on:** 457 signals, 21 daily files (Apr 20 – May 10 2026)
+**Corrected:** All outcome fields removed. Only entry-time fields + TP snapshots used.
+
+---
+
+## WHAT WAS WRONG BEFORE
+
+| Field | Problem |
+|-------|---------|
+| `signal_type` (fast/slow/delayed) | Outcome field — always "active" at entry, useless |
+| `btc_trend_during_signal` | Outcome field — unknown at entry |
+| `went_negative_before_tp` | Outcome field — unknown at entry |
+| `peak_pct`, `max_drawdown_pct` | Outcome fields — unknown at entry |
+
+The previous monster score was circular. Fast signals scored high because they already hit TPs — of course they had 0% failure.
+
+---
+
+## PART 1 — ENTRY-TIME ANALYSIS
+
+### Top Predictors (entry-time only, selective)
+
+Ranked by edge (monster% minus failed%), only conditions true for ≤55% of all signals:
+
+| Condition | All% | Failed% | Monster% | Hit100% | Edge |
+|-----------|------|---------|----------|---------|------|
+| `price_change_24h > 12%` | 27.8% | 18.6% | **54.5%** | 50% | +35.9% |
+| `price_change_24h > 10%` | 39.4% | 28.0% | 61.8% | 55.6% | +33.8% |
+| `price_change_24h > 15%` | 16.0% | 9.3% | 40.0% | 33.3% | +30.7% |
+| `market_cap $5M–$50M` | 43.1% | 35.6% | 61.8% | 55.6% | +26.2% |
+| `breakout_margin > 2%` | 34.4% | 30.5% | 56.4% | 61.1% | +25.9% |
+| `market_cap $20M–$100M` | 41.6% | 42.4% | 67.3% | 77.8% | +24.9% |
+| `market_cap $10M–$50M` | 38.1% | 33.9% | 58.2% | 55.6% | +24.3% |
+| `breakout_margin > 1.5%` | 42.9% | 39.0% | 61.8% | 61.1% | +22.8% |
+| `ema50_distance > 10%` | 39.4% | 36.4% | 56.4% | 61.1% | +20.0% |
+| `funding_rate > 0.01` | 15.5% | 11.0% | 30.9% | 38.9% | +19.9% |
+| `oi_change_pct > 10%` | 46.2% | 44.9% | 63.6% | 77.8% | +18.7% |
+| `vcr > 1.2` | 49.0% | 42.4% | 60.0% | 72.2% | +17.6% |
+| `funding_rate > 0.005` | 28.2% | 22.9% | 40.0% | 50.0% | +17.1% |
+| `oi_change_pct > 15%` | 27.8% | 30.5% | 45.5% | 55.6% | +15.0% |
+| `high_breakout_warning = true` | 8.1% | 6.8% | 21.8% | 22.2% | +15.0% |
+
+### Key Insight: `high_breakout_warning` Is Counterintuitive
+Only 8.1% of all signals have this. Monster rate is 21.8% vs 6.8% failed — it's actually a POSITIVE signal despite the name. Coins that already broke out hard at entry tend to keep running. Don't filter these out.
+
+---
+
+### Best Entry-Time Combos
+
+| Combo | Count | Monster% | Fail% | Hit100% | Avg Peak |
+|-------|-------|----------|-------|---------|----------|
+| `24h>15% + high_bkout=T` | 21 | **42.9%** | 9.5% | 14.3% | +54.4% |
+| `fr>0.01 + high_bkout=T` | 13 | **38.5%** | **0%** | 23.1% | +56.7% |
+| `24h>15% + mcap_10_100M + bm>2` | 32 | 37.5% | 12.5% | 15.6% | +57.7% |
+| `24h>15% + mcap_10_100M` | 51 | 37.3% | 13.7% | 11.8% | +49.7% |
+| `24h>15% + mcap_5_50M` | 46 | 34.8% | 6.5% | 10.9% | +46.2% |
+| `24h>15% + vcr>1.5` | 33 | 36.4% | 9.1% | 9.1% | +44.6% |
+| `24h>15% + mcap_5_100M + bm>2` | 36 | 36.1% | 11.1% | 13.9% | +55.3% |
+
+**Best combo overall: `funding_rate > 0.01 + high_breakout_warning = true`**
+- 13 signals, 38.5% monster rate, **0% failure**, avg peak +56.7%
+- Small sample (13) so needs more data to confirm
+
+**Best large-sample combo: `24h > 15% + mcap $10M–$100M`**
+- 51 signals, 37.3% monster rate, 13.7% failure, avg peak +49.7%
+
+---
+
+## PART 2 — TP SNAPSHOT ANALYSIS (Mid-Signal Decisions)
+
+This is what makes your data unique. You have full OI, funding, EMA, momentum at each TP hit. Use this to decide: **hold or exit at TP5/TP10?**
+
+### At TP5 — Should You Hold or Exit?
+
+Compare coins that stalled (max TP10) vs continued to TP50+:
+
+| Field at TP5 | Stalled at TP10 | Continued to TP50+ | Key? |
+|---|---|---|---|
+| `hours_to_hit_tp5` | 40.1h | **17.2h** | ✅ YES |
+| `ema50_distance_pct` | 11.4% | **19.0%** | ✅ YES |
+| `price_momentum_4h_pct` | 3.0% | **4.5%** | ✅ YES |
+| `oi_change_pct` | 11.1% | **15.0%** | ✅ YES |
+| `funding_rate` | 0.001 | **0.007** | ✅ YES |
+| `rvol_20` | 2.86 | **3.42** | moderate |
+| `vcr` | 1.36 | **1.54** | moderate |
+
+**The single biggest predictor: how fast it hit TP5.**
+- Coins that hit TP5 in under 20 hours → very likely to continue to TP50+
+- Coins that took 40+ hours to hit TP5 → usually stall there
+
+**Hold rule at TP5:**
+- `hours_to_tp5 < 20` AND `ema50_distance > 15%` AND `price_momentum_4h > 4%` → HOLD, likely to hit TP50+
+- `hours_to_tp5 > 40` OR `price_momentum_4h < 2%` → EXIT at TP10, momentum fading
+
+---
+
+### At TP10 — Should You Hold for TP50+?
+
+Compare coins that continued to TP50+ vs stalled at TP10-20:
+
+| Field at TP10 | Stalled TP10-20 | Continued TP50+ | Key? |
+|---|---|---|---|
+| `hours_to_hit_tp10` | 55.2h | **29.7h** | ✅ STRONGEST |
+| `market_cap_M` | 141M | **75M** | ✅ YES |
+| `ema50_distance_pct` | 15.9% | **23.6%** | ✅ YES |
+| `oi_change_pct` | 16.0% | **21.7%** | ✅ YES |
+| `price_momentum_4h_pct` | 3.15% | **4.69%** | ✅ YES |
+| `funding_rate` | -0.008 | **-0.004** | moderate |
+| `vcr` | 1.48 | **1.64** | moderate |
+
+**Again: speed is the #1 predictor.**
+- Hit TP10 in under 30 hours → strong momentum, likely to continue
+- Took 55+ hours to hit TP10 → exhausted, usually stalls
+
+**Hold rule at TP10:**
+- `hours_to_tp10 < 30` AND `ema50_distance > 20%` AND `oi_change > 20%` → HOLD for TP50+
+- `hours_to_tp10 > 50` OR `market_cap > 150M` → EXIT, very unlikely to reach TP50
+
+---
+
+## PART 3 — COMPLETE TRADING STRATEGY
+
+### Entry Decision (entry-time fields only)
+
+**Monster Score — 0 to 7 points:**
+
+```python
+def monster_score(signal):
+    ad = signal['additional_data']
+    score = 0
+
+    # Strongest predictors
+    if signal.get('price_change_24h', 0) > 15:        score += 2  # +30.7% edge
+    elif signal.get('price_change_24h', 0) > 10:      score += 1  # +33.8% edge
+
+    if signal.get('high_breakout_warning') == True:    score += 2  # counterintuitive but works
+
+    # Market cap sweet spot
+    mcap = ad.get('market_cap_usd') or 0
+    if 10_000_000 <= mcap <= 100_000_000:              score += 1  # +24.9% edge
+
+    # Momentum indicators
+    if ad.get('ema50_distance_pct', 0) > 10:           score += 1  # +20% edge
+    if (ad.get('funding_rate') or 0) > 0.01:           score += 1  # +19.9% edge
+
+    return score  # max 7
+```
+
+| Score | Monster% | Fail% | Action |
+|-------|----------|-------|--------|
+| 6–7 | ~40%+ | <10% | Max size, target TP50–TP100 |
+| 4–5 | ~25–35% | ~15% | Full size, target TP20–TP30 |
+| 3 | ~15–20% | ~20% | Half size, exit at TP10 |
+| ≤2 | <10% | >25% | Skip or tiny size |
+
+---
+
+### Mid-Signal Decision at TP5
+
+Check these from `tp5_snapshot`:
+
+```
+HOLD toward TP50+ if ALL of:
+  hours_to_tp5 < 20
+  ema50_distance_pct > 15%
+  price_momentum_4h_pct > 4%
+  oi_change_pct > 12%
+
+EXIT at TP10 if ANY of:
+  hours_to_tp5 > 40
+  price_momentum_4h_pct < 2%
+  funding_rate < -0.01
+```
+
+---
+
+### Mid-Signal Decision at TP10
+
+Check these from `tp10_snapshot`:
+
+```
+HOLD toward TP50+ if ALL of:
+  hours_to_tp10 < 30
+  ema50_distance_pct > 20%
+  oi_change_pct > 18%
+  market_cap_usd < 100M
+
+EXIT at TP20–30 if ANY of:
+  hours_to_tp10 > 50
+  market_cap_usd > 150M
+  price_momentum_4h_pct < 2%
+```
+
+---
+
+### Stop Loss
+
+Based on actual drawdown before TP5 across all signals:
+
+| SL | Stopped before TP5 | Survives |
+|----|-------------------|---------|
+| -5% | 20% | 80% |
+| -7% | 12% | 88% |
+| **-10%** | **6%** | **94%** |
+| -12% | 3% | 97% |
+
+**Use -10% SL.** Median dip before TP5 is only -2%. Most coins never go below -5% before running. -10% catches the rare deep dips without killing winners.
+
+---
+
+## SUMMARY
+
+| Layer | What it does |
+|-------|-------------|
+| Monster score (0–7) at entry | Decides position size |
+| TP5 snapshot check | Hold or exit at TP5 |
+| TP10 snapshot check | Hold or exit at TP10 |
+| SL at -10% | Protects against real failures |
+
+**Best entry combo found:** `24h > 15% + mcap $10M–$100M` → 51 signals, 37.3% monster rate, avg peak +49.7%
+
+**Speed is the mid-signal key:** Fast to TP5 (< 20h) = strong momentum = hold. Slow to TP5 (> 40h) = fading = exit early.
+
+---
+*All conditions verified with selectivity check. No outcome fields used.*
+*457 signals, April 20 – May 10 2026*

@@ -931,7 +931,7 @@ class TelegramCommandListener:
     def _cmd_monster(self, chat_id: str) -> None:
         min_score = self._monster_report_min_score
         candidate_threshold = self._monster_candidate_threshold
-        self._send(chat_id, f"⏳ Loading monster signals (score ≥ {min_score}/9)…")
+        self._send(chat_id, f"⏳ Loading monster signals (score ≥ {min_score}/7)…")
 
         try:
             prices = self._binance.get_mark_prices()
@@ -948,7 +948,7 @@ class TelegramCommandListener:
         all_monsters = active_monsters + history_monsters
 
         if not all_monsters:
-            self._send(chat_id, f"🔥 No monster signals found with score ≥ {min_score}/9.")
+            self._send(chat_id, f"🔥 No monster signals found with score ≥ {min_score}/7.")
             return
 
         total = len(all_monsters)
@@ -986,8 +986,8 @@ class TelegramCommandListener:
             f"🔥 <b>MONSTER SIGNALS REPORT</b>",
             f"{'━' * 28}",
             f"",
-            f"🎯 Report threshold:  score ≥ {min_score}/9",
-            f"🔥 Candidate flag:    score ≥ {candidate_threshold}/9",
+            f"🎯 Report threshold:  score ≥ {min_score}/7",
+            f"🔥 Candidate flag:    score ≥ {candidate_threshold}/7",
             f"",
             f"📊 Total monsters:   <b>{total}</b>",
             f"🟢 Active:           {active_count}  ({running} with no TP yet)",
@@ -1013,7 +1013,7 @@ class TelegramCommandListener:
         lines.append("━━━ 🔢 SCORE BREAKDOWN ━━━")
         for sc in sorted(score_dist.keys(), reverse=True):
             bar = "🔥" if sc >= candidate_threshold else "⭐"
-            lines.append(f"{bar} Score {sc}/9:  {score_dist[sc]} signal{'s' if score_dist[sc] != 1 else ''}")
+            lines.append(f"{bar} Score {sc}/7:  {score_dist[sc]} signal{'s' if score_dist[sc] != 1 else ''}")
 
         lines.append("")
         lines.append(f"📎 Sending JSON with all {total} monster signals…")
@@ -1022,7 +1022,7 @@ class TelegramCommandListener:
 
         self._send_chunked_json(
             chat_id, all_monsters, "monster_signals",
-            f"🔥 Monster Signals — score ≥ {min_score}/9  ({total} signals)"
+            f"🔥 Monster Signals — score ≥ {min_score}/7  ({total} signals)"
         )
 
     # ── /help ────────────────────────────────────────────────────────
@@ -1041,7 +1041,7 @@ class TelegramCommandListener:
             "                   peak, lowest, exit prices\n"
             "/export_csv — Flat CSV of all signals for analysis\n"
             "/validate — Data integrity check on active signals\n"
-            f"/monster — Monster signals report (score ≥ {self._monster_report_min_score}/9)\n"
+            f"/monster — Monster signals report (score ≥ {self._monster_report_min_score}/7)\n"
             "           Text summary + JSON file of all monster signals\n"
             "/help — This message\n\n"
             f"📡 Tracking window: {self._tracker.max_age_hours}h\n"

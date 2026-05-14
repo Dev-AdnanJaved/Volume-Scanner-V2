@@ -81,8 +81,27 @@
     "log_file": "scanner.log"
   },
   "monster": {
-    "candidate_threshold": 9,
-    "report_min_score": 8
+    "candidate_threshold": 6,
+    "report_min_score": 3,
+    "score_tiers": {
+      "6": {"label": "max_size",  "margin_multiplier": 1.0,  "tp1_pct": 50.0, "tp2_pct": 100.0},
+      "4": {"label": "full_size", "margin_multiplier": 0.75, "tp1_pct": 20.0, "tp2_pct": 30.0},
+      "3": {"label": "half_size", "margin_multiplier": 0.5,  "tp1_pct": 10.0, "tp2_pct": 10.0}
+    },
+    "tp5_hold_hours_max": 20,
+    "tp5_ema_dist_min": 15.0,
+    "tp5_momentum_min": 4.0,
+    "tp5_oi_change_min": 12.0,
+    "tp5_exit_hours_min": 40,
+    "tp5_exit_momentum_max": 2.0,
+    "tp5_exit_funding_max": -0.01,
+    "tp10_hold_hours_max": 30,
+    "tp10_hold_ema_dist_min": 20.0,
+    "tp10_hold_oi_min": 18.0,
+    "tp10_hold_mcap_max": 100000000,
+    "tp10_exit_hours_min": 50,
+    "tp10_exit_mcap_max": 150000000,
+    "tp10_exit_momentum_max": 2.0
   },
   "auto_trade": {
     "enabled": false,
@@ -95,10 +114,8 @@
       "5": 4.0
     },
     "margin_pct": 2.0,
-    "sl_pct": 7.0,
-    "tp1_pct": 10.0,
+    "sl_pct": 10.0,
     "tp1_qty_pct": 50.0,
-    "tp2_pct": 30.0,
     "tp2_qty_pct": 50.0,
     "move_sl_to_breakeven_after_tp1": true,
     "hedge_mode": false,

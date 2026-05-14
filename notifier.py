@@ -207,9 +207,9 @@ class TelegramNotifier:
         m_score = d.get("monster_score", 0)
         is_monster = d.get("is_monster_candidate", False)
         if is_monster:
-            lines.append(f"🔥 <b>Monster Score:</b>  {m_score}/9  🔥🔥🔥 MONSTER SIGNAL!")
+            lines.append(f"🔥 <b>Monster Score:</b>  {m_score}/7  🔥🔥🔥 MONSTER SIGNAL!")
         else:
-            lines.append(f"🔥 <b>Monster Score:</b>  {m_score}/9")
+            lines.append(f"🔥 <b>Monster Score:</b>  {m_score}/7")
         lines.append("")
 
         lines.extend([

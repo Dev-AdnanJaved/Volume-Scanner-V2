@@ -512,7 +512,7 @@ class Scanner:
             self._tracker.record_signal(alert)
 
         logger.info(
-            "🚨 SIGNAL  %s  brk:+%.2f%%  vols:%s→%s→%s  24h:%.1f%%  flags:%d  score:%d/8",
+            "🚨 SIGNAL  %s  brk:+%.2f%%  vols:%s→%s→%s  24h:%.1f%%  flags:%d  score:%d/7",
             symbol, brk_margin_pct,
             vol_vals[0], vol_vals[1], vol_vals[2], price_chg_24h,
             soft_flags, quality_score,
@@ -554,39 +554,41 @@ class Scanner:
 
     @staticmethod
     def _calculate_monster_score(alert: dict) -> int:
+        """
+        Score 0–7 using only entry-time fields (no outcome fields).
+
+        +2  price_change_24h > 15%   (edge: +30.7%)
+        +1  price_change_24h > 10%   (edge: +33.8%, only if not already +2)
+        +2  high_breakout_warning    (edge: +15.0%, counterintuitive but confirmed)
+        +1  market_cap $10M–$100M    (edge: +24.9%)
+        +1  ema50_distance_pct > 10% (edge: +20.0%)
+        +1  funding_rate > 0.01%     (edge: +19.9%)
+        """
         ad = alert.get("additional_data", {})
         score = 0
 
-        if ad.get("funding_in_ideal_range") == True:
+        price_chg = alert.get("price_change_24h", 0)
+        if price_chg > 15:
+            score += 2
+        elif price_chg > 10:
             score += 1
 
-        if ad.get("is_compressed") == False:
-            score += 1
+        if alert.get("high_breakout_warning") == True:
+            score += 2
 
         mcap = ad.get("market_cap_usd") or 0
-        if 5_000_000 <= mcap <= 200_000_000:
+        if 10_000_000 <= mcap <= 100_000_000:
             score += 1
 
-        if (alert.get("quality_score") or 0) >= 4:
+        ema_dist = ad.get("ema50_distance_pct") or 0
+        if ema_dist > 10:
             score += 1
 
-        if (alert.get("soft_flags") or 0) <= 2:
+        funding = ad.get("funding_rate") or 0
+        if funding > 0.01:
             score += 1
 
-        fr = ad.get("funding_rate") or 0
-        if fr > -0.01:
-            score += 1
-
-        if fr > 0:
-            score += 1
-
-        if ad.get("price_above_ema50_4h") == True:
-            score += 1
-
-        if alert.get("btc_trend") == "ranging":
-            score += 1
-
-        return score  # 0 to 9
+        return score  # 0 to 7
 
     def _count_soft_flags(
         self,
