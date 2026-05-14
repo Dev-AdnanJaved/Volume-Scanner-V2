@@ -223,6 +223,23 @@ def _ema_calc(values: list, period: int) -> float:
     return ema
 
 
+async def _get_position_size(
+    client: AsyncClient, symbol: str, hedge_mode: bool
+) -> float | None:
+    """Return current LONG position size, or None if the API call fails."""
+    try:
+        positions = await client.futures_position_information(symbol=symbol)
+        for p in positions:
+            if hedge_mode:
+                if p.get("positionSide") == "LONG":
+                    return float(p.get("positionAmt", 0))
+            else:
+                return abs(float(p.get("positionAmt", 0)))
+    except Exception as e:
+        logger.debug("_get_position_size failed for %s: %s", symbol, e)
+    return None
+
+
 # ── AutoTrader ────────────────────────────────────────────────────────────────
 
 class AutoTrader:
@@ -833,9 +850,34 @@ class AutoTrader:
         while self._running and symbol in self._open_trades:
             trade = self._open_trades.get(symbol)
             if not trade or trade.get("status") != "open":
+                self._open_trades.pop(symbol, None)
+                logger.warning(
+                    "AutoTrader: %s watch loop exiting — unexpected status, slot freed",
+                    symbol,
+                )
                 break
 
             try:
+                # ── External-closure guard (position size = 0) ────────────
+                pos_size = await _get_position_size(client, symbol, self._hedge_mode)
+                if pos_size is not None and pos_size == 0:
+                    await asyncio.gather(
+                        _cancel_order(client, symbol, trade.get("tp1_id")),
+                        _cancel_order(client, symbol, trade.get("tp2_id")),
+                        _cancel_order(client, symbol, trade.get("sl_id")),
+                        return_exceptions=True,
+                    )
+                    await self._notify(
+                        f"🔴 <b>EXTERNAL CLOSE</b> — {symbol}\n"
+                        f"Position was closed externally (size = 0).\n"
+                        f"All pending orders cancelled. Trade slot freed."
+                    )
+                    self._open_trades.pop(symbol, None)
+                    logger.info(
+                        "AutoTrader: %s externally closed — slot freed", symbol
+                    )
+                    return
+
                 # ── TP snapshot price checks (before order status checks) ─
                 if not (tp5_checked and tp10_checked):
                     try:
